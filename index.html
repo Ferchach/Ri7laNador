@@ -2,141 +2,129 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <meta name="theme-color" content="#0a0f1e">
-  <title>المسابقة الثقافية - نظام المزامنة الذكي v2</title>
-
-  <!-- Polices manquantes (Tajawal + Amiri) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
-
-  <!-- Feuille de style externe (correctement chargée maintenant) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>المسابقة الثقافية - نظام المزامنة الذكي</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Tajawal:wght@300;400;500;700;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
-<script type="text/javascript" src="https://ff.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=Q--3whxuZ9FY3cWjuDZE21zhIC8k2RUOO0mZLfGYBPbIBT8gkRSsL4UCCIeRUHUh6M6S9vlOYpSHdXQEui8k5Q" charset="UTF-8"></script></head>
+</head>
 <body>
 
-  <!-- Barre de statut globale (une seule, déplacée hors des écrans) -->
-  <div class="header-bar" id="global-header">
-    <div class="header-left">
-      <span id="sync-dot" class="status-dot" aria-live="polite"></span>
-      <span id="sync-text">جاري الاتصال...</span>
-      <button class="btn-mini" onclick="forceSync()" title="تحديث يدوي">↻</button>
+  <!-- Top Bar -->
+  <div class="header-bar">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span id="sync-dot" class="status-dot"></span>
+      <span id="sync-text" style="font-size:0.7rem;">جاري الاتصال...</span>
+      <button onclick="forceSync()" style="background:var(--teal); border:none; color:white; font-size:0.6rem; padding:2px 8px; border-radius:5px; cursor:pointer;">تحديث يدوي</button>
     </div>
-    <div id="display-room-code" class="room-tag"></div>
+    <div id="display-room-code" style="font-weight:bold; color:var(--gold); font-size:0.8rem;"></div>
   </div>
 
-  <!-- ÉCRAN 1 : Saisie code chambre -->
-  <div id="screen-room" class="screen active center">
-    <div class="container container-sm">
-      <div class="logo-area">
-        <div class="logo-icon">🎭</div>
-        <h1>المسابقة الثقافية</h1>
-        <p class="muted">نظام المزامنة الذكي v2</p>
-      </div>
+  <!-- Screen 1: Room Selection -->
+  <div id="screen-room" class="screen active">
+    <div class="container">
       <div class="card">
-        <p class="muted" style="text-align:center; margin-bottom:1rem;">أدخل رمز الغرفة للمزامنة بين الأجهزة</p>
-        <input type="text" id="room-code-in" placeholder="مثال: A1" maxlength="10" autocomplete="off">
+        <h1 style="margin-bottom:10px;">المسابقة الثقافية</h1>
+        <p class="muted" style="margin-bottom:20px;">أدخل رمز الغرفة للمزامنة</p>
+        <input type="text" id="room-code-in" placeholder="مثال: A1" maxlength="10">
         <button class="btn btn-gold" onclick="initRoom()">دخول الغرفة</button>
       </div>
     </div>
   </div>
 
-  <!-- ÉCRAN 2 : Choix du rôle -->
-  <div id="screen-role" class="screen center">
-    <div class="container container-sm">
+  <!-- Screen 2: Role Selection -->
+  <div id="screen-role" class="screen">
+    <div class="container">
       <div class="card">
-        <h2 style="text-align:center; margin-bottom:1rem;">اختر دورك</h2>
+        <h2 style="margin-bottom:20px;">اختر دورك</h2>
         <button class="btn btn-teal" onclick="goto('screen-sup-login')">👑 المشرف (المسير)</button>
         <button class="btn btn-outline" onclick="goto('screen-part-login')">👥 فريق مشارك</button>
-        <button class="btn btn-outline" onclick="goto('screen-jury-login')">⚖️ لجنة التحكيم</button>
-        <button class="btn btn-outline btn-ghost" onclick="exitRoom()">↩ تغيير الغرفة</button>
+        <button class="btn btn-outline" onclick="goto('screen-jury-login')" style="border-color:var(--gold);">⚖️ لجنة التحكيم</button>
+        <button class="btn btn-outline" style="margin-top:2rem; font-size:0.8rem; border:none;" onclick="exitRoom()">↩ تغيير الغرفة</button>
       </div>
     </div>
   </div>
 
-  <!-- Login Superviseur -->
-  <div id="screen-sup-login" class="screen center">
-    <div class="container container-sm">
+  <!-- Screen: Supervisor Login -->
+  <div id="screen-sup-login" class="screen">
+    <div class="container">
       <div class="card">
         <h2>دخول المشرف</h2>
-        <input type="password" id="sup-pin" placeholder="الرمز السري" autocomplete="current-password">
+        <input type="password" id="sup-pin" placeholder="الرمز السري">
         <button class="btn btn-gold" onclick="checkPin()">دخول</button>
         <button class="btn btn-outline" onclick="goto('screen-role')">رجوع</button>
       </div>
     </div>
   </div>
 
-  <!-- Login Jury -->
-  <div id="screen-jury-login" class="screen center">
-    <div class="container container-sm">
+  <!-- Screen: Jury Login -->
+  <div id="screen-jury-login" class="screen">
+    <div class="container">
       <div class="card">
         <h2>دخول لجنة التحكيم</h2>
-        <input type="password" id="jury-pin" placeholder="رمز اللجنة" autocomplete="current-password">
+        <input type="password" id="jury-pin" placeholder="رمز اللجنة">
         <button class="btn btn-gold" onclick="checkJuryPin()">دخول</button>
         <button class="btn btn-outline" onclick="goto('screen-role')">رجوع</button>
       </div>
     </div>
   </div>
 
-  <!-- Tableau de bord Superviseur -->
+  <!-- Screen: Supervisor Dashboard -->
   <div id="screen-supervisor" class="screen">
     <div class="sup-header">
-      <div class="room-tag" id="sup-room-id"></div>
-      <div class="sup-actions">
-        <button class="btn btn-outline btn-sm" onclick="showQRCode()">📱 QR</button>
-        <button class="btn btn-outline btn-sm" onclick="exportToSheets()">📊 تصدير</button>
-        <button class="btn btn-red btn-sm" onclick="confirmReset()">🔄 إعادة ضبط</button>
-        <button class="btn btn-outline btn-sm" onclick="exitRoom()">🚪</button>
+      <div id="sup-room-id" style="font-weight:bold; color:var(--gold);"></div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-sm btn-outline" style="font-size: 0.7rem; padding: 5px 10px; width:auto; margin-top:0;" onclick="exportToSheets()">📊 تصدير</button>
+        <button class="btn btn-sm btn-red" style="font-size: 0.7rem; padding: 5px 10px; width:auto; margin-top:0;" onclick="confirmReset()">🔄 إعادة ضبط</button>
+        <button class="btn btn-sm" style="font-size: 0.7rem; padding: 5px 10px; background: #333; width:auto; margin-top:0;" onclick="exitRoom()">🚪 خروج</button>
       </div>
     </div>
-    <div class="container">
+    <div class="container" style="padding-top:1rem;">
       <div class="tab-bar">
-        <button class="tab active" onclick="supTab('cat', this)">الأصناف</button>
-        <button class="tab" onclick="supTab('scores', this)">الترتيب</button>
-        <button class="tab" onclick="supTab('answers', this)">الإجابات</button>
+        <div class="tab active" onclick="supTab('cat', this)">الأصناف</div>
+        <div class="tab" onclick="supTab('scores', this)">الترتيب</div>
+        <div class="tab" onclick="supTab('answers', this)">الإجابات</div>
       </div>
 
       <div id="stab-cat">
         <div class="card">
-          <p class="muted">اختر صنفاً لبدء الأسئلة</p>
+          <p class="muted" style="font-size:0.8rem;">اختر صنفاً لبدء الأسئلة</p>
           <div id="cat-grid" class="cat-grid"></div>
         </div>
-        <div id="sup-q-card" class="card hidden">
-          <div class="badge-row">
+        <div id="sup-q-card" class="card" style="margin-top:20px; display:none;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
             <span class="badge badge-teal" id="sup-q-cat-badge"></span>
             <span class="badge badge-gold" id="sup-q-num-badge"></span>
-            <span class="badge badge-purple" id="sup-q-pts-badge"></span>
+            <span class="badge badge-teal" id="sup-q-pts-badge"></span>
           </div>
-          <p class="q-text" id="sup-q-text"></p>
-          <div id="sup-q-opts" class="opts-grid"></div>
-          <div id="sup-reveal-box" class="answer-reveal">
-            <span class="muted">الجواب الصحيح: </span>
-            <strong id="sup-reveal-text"></strong>
+          <h3 id="sup-q-text" style="margin-bottom:20px;"></h3>
+          <div id="sup-q-opts"></div>
+          <div id="sup-reveal-box" class="card-sm" style="background:rgba(20,184,166,0.1); border:1px solid var(--teal); display:none; margin-top:15px;">
+            <p class="muted" style="font-size:0.7rem;">الجواب الصحيح</p>
+            <p id="sup-reveal-text" style="font-weight:bold; color:var(--teal);"></p>
           </div>
-          <div class="flex" style="margin-top:1rem;">
-            <button class="btn btn-gold" id="btn-launch" onclick="launchQuestion()">▶ إطلاق السؤال</button>
-            <button class="btn btn-outline" onclick="revealAns()">👁 كشف</button>
+          <div style="margin-top:20px; display:flex; gap:10px;">
+            <button class="btn btn-gold" id="btn-launch" onclick="launchQuestion()" style="flex:2;">▶ إطلاق السؤال</button>
+            <button class="btn btn-outline" onclick="revealAns()" style="flex:1;">👁 كشف</button>
           </div>
-          <div class="flex">
-            <button class="btn btn-outline" id="btn-next" onclick="nextQ()">التالي ›</button>
-            <button class="btn btn-outline" id="btn-cancel-pick" onclick="cancelPick()">↩ تراجع</button>
+          <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button class="btn btn-outline" id="btn-next" onclick="nextQ()" style="flex: 2;">التالي ›</button>
+            <button class="btn btn-outline" id="btn-cancel-pick" onclick="cancelPick()" style="flex: 1; border-color: #444; font-size: 0.8rem;">↩ تراجع</button>
           </div>
-          <div id="sup-status-badge" class="badge"></div>
+          <div id="sup-status-badge" class="badge" style="margin-top:10px; display:inline-block;"></div>
         </div>
       </div>
 
       <div id="stab-scores" class="hidden">
         <div class="card">
           <h3>الترتيب الحالي</h3>
-          <div id="scores-list" style="margin-top:1rem;"></div>
-          <button class="btn btn-teal" onclick="showFinalResults()">🏆 عرض النتائج النهائية</button>
-          <div class="manual-score-box">
-            <p class="muted">إضافة نقاط يدوية</p>
-            <div class="inline-score">
-              <input type="number" id="manual-team" placeholder="رقم الفريق" min="1" max="20">
-              <input type="number" id="manual-pts" placeholder="النقاط">
-              <button class="btn btn-teal btn-sm" onclick="addManual()">+</button>
+          <div id="scores-list" style="margin-top:15px;"></div>
+          <button class="btn btn-teal" style="margin-top:2rem;" onclick="showFinalResults()">🏆 عرض النتائج النهائية</button>
+          <div style="margin-top:20px; padding-top:15px; border-top:1px solid #444;">
+            <p class="muted" style="font-size:0.7rem;">إضافة نقاط يدوية</p>
+            <div style="display:flex; gap:5px;">
+              <input type="number" id="manual-team" placeholder="رقم الفريق" style="flex:1;">
+              <input type="number" id="manual-pts" placeholder="النقاط" style="flex:1;">
+              <button class="btn btn-teal" onclick="addManual()" style="width:auto; margin-top:10px;">+</button>
             </div>
           </div>
         </div>
@@ -144,136 +132,122 @@
 
       <div id="stab-answers" class="hidden">
         <div class="card">
-          <h3>إجابات الفرق (مباشر) <span id="latency-tag" class="muted"></span></h3>
-          <div id="answers-list" style="margin-top:1rem;">
+          <h3>إجابات الفرق (مباشر)</h3>
+          <div id="answers-list" style="margin-top:15px;">
             <p class="muted">لا إجابات بعد</p>
           </div>
-          <div class="sheets-config">
-            <p class="muted">رابط مزامنة Google Sheets (اختياري)</p>
-            <input type="text" id="sheets-url" placeholder="https://script.google.com/macros/s/...">
+          <div style="margin-top:2rem; border-top:1px solid #444; padding-top:1rem; text-align:right;">
+            <p class="muted" style="font-size:0.7rem;">رابط مزامنة Google Sheets (اختياري)</p>
+            <input type="text" id="sheets-url" placeholder="https://script.google.com/macros/s/..." style="font-size:0.7rem; color:#aaa;">
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Vue Jury -->
+  <!-- Screen: Jury View -->
   <div id="screen-jury" class="screen">
     <div class="sup-header">
-      <div class="room-tag">⚖️ لجنة التحكيم</div>
-      <button class="btn btn-outline btn-sm" onclick="exitRoom()">🚪</button>
+      <div style="font-weight:bold; color:var(--gold);">⚖️ لجنة التحكيم</div>
+      <button class="btn btn-sm btn-outline" style="width:auto; margin-top:0;" onclick="exitRoom()">خروج</button>
     </div>
-    <div class="container">
+    <div class="container" style="padding-top:1rem;">
       <div id="jury-q-card" class="card hidden">
-        <div class="badge-row">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
           <span class="badge badge-teal" id="jury-cat"></span>
           <span class="badge badge-gold" id="jury-pts"></span>
         </div>
-        <p class="q-text" id="jury-q-text"></p>
-        <div id="jury-timer-box" class="jury-timer"></div>
-        <div class="answer-reveal" style="display:block;">
-          <span class="muted">الجواب الصحيح: </span>
-          <strong id="jury-ans"></strong>
+        <h3 id="jury-q-text"></h3>
+        <div id="jury-timer-box" style="margin:10px 0; font-size:1.5rem; font-weight:bold; color:var(--teal);"></div>
+        <div style="background:rgba(20,184,166,0.1); padding:10px; border-radius:10px; margin:10px 0;">
+          <p class="muted" style="font-size:0.7rem;">الجواب الصحيح</p>
+          <p id="jury-ans" style="color:var(--teal); font-weight:bold;"></p>
         </div>
       </div>
-      <div class="card">
+      <div class="card" style="margin-top:15px;">
         <h3>إجابات الفرق الحالية</h3>
-        <div id="jury-answers-list" style="margin-top:1rem;"></div>
+        <div id="jury-answers-list" style="margin-top:15px;"></div>
       </div>
-      <div class="card">
+      <div class="card" style="margin-top:15px;">
         <h3>الترتيب العام</h3>
         <div id="jury-scores-list"></div>
       </div>
     </div>
   </div>
 
-  <!-- Login Participant -->
-  <div id="screen-part-login" class="screen center">
-    <div class="container container-sm">
+  <!-- Screen: Participant Login -->
+  <div id="screen-part-login" class="screen">
+    <div class="container">
       <div class="card">
         <h2>دخول الفريق</h2>
         <input type="number" id="part-team-in" placeholder="رقم فريقك (1-20)" min="1" max="20">
-        <input type="text" id="part-team-name" placeholder="اسم الفريق (اختياري)" maxlength="30">
         <button class="btn btn-teal" onclick="joinTeam()">بدء المسابقة</button>
         <button class="btn btn-outline" onclick="goto('screen-role')">رجوع</button>
       </div>
     </div>
   </div>
 
-  <!-- Vue Participant -->
+  <!-- Screen: Participant View -->
   <div id="screen-participant" class="screen">
     <div class="container">
-      <div id="part-waiting" class="card center">
-        <div class="waiting-anim"></div>
-        <h3>في انتظار المشرف...</h3>
-        <p class="muted">سيظهر السؤال تلقائياً عند إطلاق المشرف</p>
-        <div class="card-sm" style="margin-top:1rem; background:var(--bg3);">
-          <p class="muted">فريقك</p>
-          <p class="team-display gold" id="part-team-display"></p>
+      <!-- Waiting View -->
+      <div id="part-waiting" class="card">
+        <div class="timer-wrap" style="animation: pulse 2s infinite;">
+          <svg><circle class="timer-bg" cx="60" cy="60" r="52"></circle><circle class="timer-progress" cx="60" cy="60" r="52" style="stroke:var(--gold); stroke-dashoffset:0;"></circle></svg>
+          <div class="timer-num gold">...</div>
         </div>
-        <button class="btn btn-outline btn-ghost" onclick="exitRoom()">🚪 تغيير الغرفة</button>
+        <h3>في انتظار المشرف...</h3>
+        <p class="muted" style="margin-top:10px;">سيظهر السؤال تلقائياً عند إطلاق المشرف</p>
+        <div class="card-sm" style="background:rgba(255,255,255,0.05); margin-top:20px;">
+          <p class="muted" style="font-size:0.8rem;">فريقك</p>
+          <p style="font-size:2rem; font-weight:900;" class="gold" id="part-team-display"></p>
+        </div>
+        <button class="btn btn-outline" style="margin-top: 1rem; font-size: 0.8rem; border-color: #444;" onclick="exitRoom()">🚪 تغيير الغرفة</button>
       </div>
 
+      <!-- Question View -->
       <div id="part-q-view" class="card hidden">
-        <div class="badge-row">
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
           <span class="badge badge-teal" id="part-cat-badge"></span>
           <span class="badge badge-gold" id="part-num-badge"></span>
         </div>
         <div class="timer-wrap">
-          <div class="timer-parent">
-            <svg class="timer-svg" viewBox="0 0 120 120">
-              <circle class="timer-bg" cx="60" cy="60" r="52"></circle>
-              <circle id="part-circle" class="timer-progress" cx="60" cy="60" r="52"></circle>
-            </svg>
-            <div id="part-timer-num" class="timer-num">30</div>
-          </div>
+          <svg><circle class="timer-bg" cx="60" cy="60" r="52"></circle><circle id="part-circle" class="timer-progress" cx="60" cy="60" r="52"></circle></svg>
+          <div id="part-timer-num" class="timer-num">30</div>
         </div>
-        <p class="q-text" id="part-q-text"></p>
+        <h3 id="part-q-text" class="q-text"></h3>
         <div id="part-opts-area" class="opts-grid"></div>
         <div id="part-open-area" class="hidden">
           <input type="text" id="part-open-inp" placeholder="اكتب إجابتك هنا...">
         </div>
-        <button id="part-send-btn" class="btn btn-teal" onclick="sendAnswer()">إرسال الإجابة</button>
-        <div id="part-sent-msg" class="submitted-msg hidden">
+        <button id="part-send-btn" class="btn btn-teal" onclick="sendAnswer()" style="margin-top:20px;">إرسال الإجابة</button>
+        <div id="part-sent-msg" class="card-sm hidden" style="background:rgba(34,197,94,0.1); border:1px solid #22c55e; margin-top:20px; color:#22c55e;">
           ✓ تم إرسال إجابتك - انتظر السؤال التالي
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Résultats finaux -->
+  <!-- Screen: Final Results -->
   <div id="screen-results" class="screen">
     <div class="container">
-      <div class="card center">
-        <div style="font-size:4rem;">🏆</div>
+      <div class="card">
+        <div style="font-size:4rem; margin-bottom:10px;">🏆</div>
         <h2 class="gold">النتائج النهائية</h2>
-        <div class="star-sep">✦ ✦ ✦</div>
+        <div class="star-sep" style="margin:15px 0; color:var(--gold);">✦ ✦ ✦</div>
         <div id="final-list"></div>
-        <div id="game-log-details" style="margin-top:2rem; text-align:right;">
-          <h3 class="gold">📝 تفاصيل الإجابات</h3>
-          <div id="log-container" class="log-scroll"></div>
+        <div id="game-log-details" style="margin-top: 2rem; text-align: right;">
+          <h3 class="gold" style="border-bottom: 1px solid #444; padding-bottom: 0.5rem; margin-bottom: 1rem;">📝 تفاصيل الإجابات</h3>
+          <div id="log-container" style="max-height: 400px; overflow-y: auto;"></div>
         </div>
-        <button class="btn btn-outline" onclick="resetCompetition()">🔄 حذف الغرفة والبدء من جديد</button>
-        <button class="btn btn-outline btn-ghost" onclick="exitRoom()">العودة للرئيسية</button>
+        <button class="btn btn-outline" onclick="resetCompetition()" style="margin-top:1.5rem; width: 100%;">🔄 حذف الغرفة والبدء من جديد</button>
+        <button class="btn btn-outline" onclick="exitRoom()" style="margin-top:0.5rem; width: 100%; border:none;">العودة للرئيسية</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal QR code -->
-  <div id="qr-modal" class="modal hidden" onclick="hideQRCode()">
-    <div class="modal-inner" onclick="event.stopPropagation()">
-      <h3>مسح للانضمام</h3>
-      <div id="qr-code-box"></div>
-      <p class="muted" id="qr-room-text"></p>
-      <button class="btn btn-outline" onclick="hideQRCode()">إغلاق</button>
-    </div>
-  </div>
+  <div id="debug-area" style="position:fixed; bottom:0; left:0; font-size:0.5rem; color:#444; pointer-events:none; padding:5px;"></div>
 
-  <div id="debug-area"></div>
-
-  <!-- Bibliothèque QR (légère, ~5KB) -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script src="assets/js/script.js"></script>
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
