@@ -7,8 +7,8 @@ const TOPIC_ANSWERS = "https://ntfy.sh/musabaka_v9_answers_";
 let ROOM_CODE = localStorage.getItem('musabaka_room_code') || "";
 
 // Hashed Pins
-const SUPERVISOR_HASH = "80fbd6041a319cf8cded6d5a153bd4663ef2690d571f5cead5d92fdd1d82136e"; // youssef98
-const JURY_HASH = "b4f91e920af57a91632f74d081f96baac861461ffec7a2f52093ce183e8cf43b"; // jury2026
+const SUPERVISOR_HASH = "ed7c13affd83dd1be773bd1708e02569da39bee0369d4119372588f715fba8da"; // youssef98
+const JURY_HASH = "d8e4bcb09b1a5a0dbdda2ad799697e0d7e211d6d0807a5f4ab2b6b49ae4cc92a"; // jury2026
 
 async function hashPin(pin) {
   const msgBuffer = new TextEncoder().encode(pin);
