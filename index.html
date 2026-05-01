@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* SYNC STATUS */
+    .sync-status {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.7rem;
+      color: var(--text2);
+      pointer-events: none;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #888;
+    }
+
+    .status-dot.online {
+      background: var(--teal2);
+      box-shadow: 0 0 8px var(--teal2);
+    }
+    /* DEBUG AREA */
+    .debug-log {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0,0,0,0.8);
+      color: #0f0;
+      font-family: monospace;
+      font-size: 10px;
+      padding: 5px;
+      max-height: 60px;
+      overflow-y: auto;
+      z-index: 10000;
+      border-top: 1px solid #333;
+      direction: ltr;
+      text-align: left;
+    }
+  </style>
+  <title>المسابقة الثقافية - جماعة العدل والإحسان</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&family=Amiri:wght@400;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+  <div id="debug-area" class="debug-log">Log: System starting...</div>
+  <div class="sync-status">
+    <div id="sync-dot" class="status-dot"></div>
+    <span id="sync-text">جاري الاتصال...</span>
+  </div>
+
+  <!-- ══════════════════════ ROOM SELECTION ══════════════════════ -->
+  <div class="screen active center" id="screen-room">
+    <div class="container-sm">
+      <div class="logo-area">
+        <div class="logo-icon">🚪</div>
+        <h1 class="gold">دخول المسابقة</h1>
+        <p class="muted">أدخل رمز الغرفة للمزامنة</p>
+      </div>
+      <div class="card">
+        <label class="muted">رمز الغرفة (Room Code)</label>
+        <input type="text" id="room-code-in" placeholder="مثال: ADL2024" style="text-align: center; font-size: 1.5rem; letter-spacing: 3px; text-transform: uppercase;">
+        <button class="btn btn-teal" onclick="initRoom()">دخول الغرفة</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ ROLE SELECTION ══════════════════════ -->
+  <div class="screen center" id="screen-role">
+    <div class="container-sm">
+      <div class="logo-area">
+        <div class="logo-icon">🏆</div>
+        <h1 class="gold">المسابقة الثقافية</h1>
+        <p class="muted">الغرفة: <span id="display-room-code" style="color: var(--teal2); font-weight: bold;">-</span></p>
+      </div>
+      <div class="card">
+        <button class="btn btn-gold" onclick="goto('screen-supervisor-pin')">🔑 دخول المشرف</button>
+        <button class="btn btn-teal" onclick="goto('screen-participant')" style="margin-top:10px;">👥 دخول المشارك</button>
+        <button class="btn btn-outline" style="margin-top:1.5rem; border-color: #444;" onclick="exitRoom()">↩ تغيير الغرفة</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ SUPERVISOR PIN ══════════════════════ -->
+  <div class="screen center" id="screen-supervisor-pin">
+    <div class="container-sm">
+      <div class="card">
+        <h2 class="gold" style="margin-bottom:1.25rem;">🔒 دخول المشرف</h2>
+        <label class="muted">الرمز السري للمشرف</label>
+        <input type="password" id="sup-pin" placeholder="أدخل الرمز" maxlength="10"
+          onkeyup="if(event.key==='Enter') checkPin()">
+        <button class="btn btn-gold" onclick="checkPin()">دخول</button>
+        <button class="btn btn-outline" onclick="goto('screen-role')">رجوع</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ SUPERVISOR DASHBOARD ══════════════════════ -->
+  <div class="screen" id="screen-supervisor">
+    <div class="sup-header" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px;">
+      <div>
+        <h2 class="gold" style="margin:0;">لوحة التحكم</h2>
+        <p class="muted" style="font-size: 0.8rem; margin:0;">الغرفة: <span id="sup-room-id" style="color:var(--gold)"></span></p>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-sm btn-outline" style="font-size: 0.7rem; padding: 5px 10px;" onclick="exportToSheets()">📊 تصدير</button>
+        <button class="btn btn-sm btn-red" style="font-size: 0.7rem; padding: 5px 10px;" onclick="confirmReset()">🔄 إعادة ضبط</button>
+        <button class="btn btn-sm" style="font-size: 0.7rem; padding: 5px 10px; background: #333;" onclick="exitRoom()">🚪 خروج</button>
+      </div>
+    </div>
+    <div class="container" style="padding-top:1rem;">
+      <div class="tab-bar">
+        <button class="tab active" onclick="supTab('cat',this)">📚 الأسئلة</button>
+        <button class="tab" onclick="supTab('scores',this)">🏅 النتائج</button>
+        <button class="tab" onclick="supTab('answers',this)">📋 الإجابات</button>
+      </div>
+
+      <!-- TAB: CATEGORIES -->
+      <div id="stab-cat">
+        <div class="cat-grid" id="cat-grid"></div>
+        <div class="card" id="sup-q-card" style="display:none; margin-top:0.5rem;">
+          <div
+            style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:0.75rem;">
+            <span class="badge badge-gold" id="sup-q-cat-badge"></span>
+            <span class="badge badge-teal" id="sup-q-num-badge"></span>
+            <span class="badge badge-purple" id="sup-q-pts-badge"></span>
+            <span class="badge badge-teal" id="sup-status-badge" style="margin-right: auto;">في الانتظار</span>
+          </div>
+          <p class="q-text" id="sup-q-text"></p>
+          <div id="sup-q-opts"></div>
+          <div class="answer-reveal" id="sup-reveal-box">
+            <span>✓ الجواب: </span><span id="sup-reveal-text"></span>
+          </div>
+          <div class="flex" style="margin-top:1rem;">
+            <button class="btn btn-teal" id="btn-launch" onclick="launchQuestion()">▶ إطلاق السؤال</button>
+            <button class="btn btn-outline" onclick="revealAns()">👁 كشف الجواب</button>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button class="btn btn-outline" id="btn-next" onclick="nextQ()" style="flex: 2;">التالي ›</button>
+            <button class="btn btn-outline" id="btn-cancel-pick" onclick="cancelPick()" style="flex: 1; border-color: #444; font-size: 0.8rem;">↩ تراجع</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: SCORES -->
+      <div id="stab-scores" class="hidden">
+        <div class="card card-sm">
+          <h3 class="gold" style="margin-bottom:1rem;">ترتيب الفرق</h3>
+          <div id="scores-list"></div>
+          <div style="margin-top:1rem; border-top:1px solid var(--border); padding-top:1rem;">
+            <p class="muted" style="margin-bottom:8px;">منح نقاط يدوياً</p>
+            <div class="inline-score">
+              <input type="number" id="manual-team" placeholder="رقم الفريق" min="1">
+              <input type="number" id="manual-pts" placeholder="نقاط" value="1" min="1" style="max-width:90px;">
+              <button class="btn btn-gold btn-sm" onclick="addManual()">منح</button>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-teal" onclick="showFinalResults()">🏆 عرض النتائج النهائية</button>
+      </div>
+
+      <!-- TAB: ANSWERS -->
+      <div id="stab-answers" class="hidden">
+        <div class="card card-sm">
+          <div
+            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:6px;">
+            <h3 class="gold">إجابات الفرق</h3>
+            <span class="muted" id="ans-q-label">-</span>
+          </div>
+          <div id="answers-list">
+            <p class="muted">لا إجابات بعد</p>
+          </div>
+          <div style="margin-top:2rem; border-top:1px solid #444; padding-top:1rem;">
+            <p class="muted" style="font-size:0.7rem;">رابط مزامنة Google Sheets (اختيari)</p>
+            <input type="text" id="sheets-url" placeholder="https://script.google.com/macros/s/..." style="font-size:0.7rem; color:#aaa;">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ PARTICIPANT ══════════════════════ -->
+  <div class="screen" id="screen-participant">
+    <div class="container-sm" style="margin: auto;">
+      <!-- Login -->
+      <div id="part-login">
+        <div class="logo-area">
+          <div class="logo-icon">👥</div>
+          <h2 class="gold">دخول المشارك</h2>
+        </div>
+        <div class="card">
+          <label class="muted" style="display:block; margin-bottom:6px;">رقم فريقك (1-20)</label>
+          <input type="number" id="part-team-in" placeholder="مثلاً: 3" min="1" max="20"
+            onkeyup="if(event.key==='Enter') joinTeam()">
+          <button class="btn btn-teal" onclick="joinTeam()">دخول ›</button>
+          <button class="btn btn-outline" onclick="goto('screen-role')">رجوع</button>
+        </div>
+      </div>
+
+      <!-- Waiting -->
+      <div id="part-waiting" class="hidden">
+        <div class="card" style="text-align:center;">
+          <div class="waiting-anim"></div>
+          <h3 style="margin-bottom:0.5rem;">في انتظار المشرف...</h3>
+          <p class="muted">سيظهر السؤال تلقائياً عند إطلاق المشرف</p>
+          <div style="margin-top:1.5rem; background:var(--bg3); border-radius:var(--radius-sm); padding:16px;">
+            <p class="muted" style="font-size:0.8rem;">فريقك</p>
+            <p style="font-size:2rem; font-weight:900;" class="gold" id="part-team-display"></p>
+          </div>
+          <button class="btn btn-outline" style="margin-top: 1rem; font-size: 0.8rem; border-color: #444;" onclick="exitRoom()">🚪 تغيير الغرفة</button>
+        </div>
+      </div>
+
+      <!-- Question -->
+      <div id="part-q-view" class="hidden">
+        <div class="card">
+          <div
+            style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:0.5rem;">
+            <span class="badge badge-gold" id="part-cat-badge"></span>
+            <span class="badge badge-teal" id="part-num-badge"></span>
+          </div>
+          <div class="timer-wrap">
+            <div class="timer-parent">
+              <svg class="timer-svg" width="120" height="120" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10" />
+                <circle id="part-circle" cx="60" cy="60" r="52" fill="none" stroke="#1bb87b" stroke-width="10"
+                  stroke-dasharray="326.7" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 60 60)"
+                  style="transition: stroke-dashoffset 0.9s linear, stroke 0.5s;" />
+              </svg>
+              <div class="timer-num" id="part-timer-num">30</div>
+            </div>
+          </div>
+          <p class="q-text" id="part-q-text"></p>
+          <div id="part-opts-area"></div>
+          <div id="part-open-area" class="hidden">
+            <input type="text" id="part-open-inp" placeholder="اكتب إجابتك هنا..." maxlength="150">
+          </div>
+          <button class="btn btn-teal" id="part-send-btn" onclick="sendAnswer()">إرسال الإجابة ✓</button>
+          <div class="submitted-msg hidden" id="part-sent-msg">✓ تم إرسال إجابتك — انتظر السؤال التالي</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ FINAL RESULTS ══════════════════════ -->
+  <div class="screen center" id="screen-results">
+    <div class="container-sm">
+      <div style="text-align:center; margin-bottom:1.5rem;">
+        <div class="logo-icon">🏆</div>
+        <h1 class="gold">النتائج النهائية</h1>
+        <div class="star-sep">✦ ✦ ✦</div>
+      </div>
+      <div id="final-list"></div>
+      
+      <div id="game-log-details" style="margin-top: 2rem; text-align: right;">
+        <h3 class="gold" style="border-bottom: 1px solid #444; padding-bottom: 0.5rem; margin-bottom: 1rem;">📝 تفاصيل الإجابات</h3>
+        <div id="log-container" style="max-height: 400px; overflow-y: auto;"></div>
+      </div>
+
+      <button class="btn btn-outline" onclick="resetAll()" style="margin-top:1.5rem; width: 100%;">🔄 مسابقة جديدة</button>
+    </div>
+  </div>
+
+  <script src="assets/js/script.js"></script>
+</body>
+
+</html>
