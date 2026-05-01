@@ -2,8 +2,8 @@
 // MUSABAKA THAQAFIYA - V9 DUAL-CHANNEL ARCHITECTURE
 // ============================================================================
 
-const TOPIC_STATE = "https://ntfy.sh/musabaka_v9_state_"; 
-const TOPIC_ANSWERS = "https://ntfy.sh/musabaka_v9_answers_"; 
+const TOPIC_STATE = "https://ntfy.envs.net/musabaka_v9_state_"; 
+const TOPIC_ANSWERS = "https://ntfy.envs.net/musabaka_v9_answers_"; 
 let ROOM_CODE = localStorage.getItem('musabaka_room_code') || "";
 
 // Hashed Pins
