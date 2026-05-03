@@ -163,6 +163,7 @@ async function saveRoomState() {
   const state = {
     teams: app.teams, completedCats: app.completedCats, currentCat: app.currentCat,
     currentQIdx: app.currentQIdx, activeAnswers: shared.answers, activeQuestion: app.activeQuestion,
+    lastQ: app.lastFinishedQuestion || null, lastAns: app.lastFinishedAnswers || null,
     ts: Date.now()
   };
   try {
@@ -257,6 +258,9 @@ function applyState(data) {
   app.teams = data.teams || {}; app.completedCats = data.completedCats || [];
   app.currentCat = data.currentCat || null; app.currentQIdx = data.currentQIdx || 0;
   shared.answers = data.activeAnswers || {}; app.activeQuestion = data.activeQuestion || null;
+  
+  app.lastFinishedQuestion = data.lastQ || null;
+  app.lastFinishedAnswers = data.lastAns || null;
   
   if (app.role === 'participant') syncParticipantState();
   if (app.role === 'jury') syncJuryState();
@@ -394,6 +398,19 @@ async function finishQuestionRound(q) {
   $('btn-launch').style.display = 'none';
   if ($('btn-relaunch')) $('btn-relaunch').style.display = 'block';
   
+  if (q.type === 'mcq') {
+    Object.entries(shared.answers).forEach(([tn, ans]) => {
+      if (ans === q.ans) {
+        if (!app.teams[tn]) app.teams[tn] = { score: 0, name: 'فريق ' + tn }; 
+        app.teams[tn].score += (q.pts || 1); 
+      }
+    });
+    renderScores(); renderAnswers();
+  }
+
+  app.lastFinishedQuestion = q;
+  app.lastFinishedAnswers = {...shared.answers};
+
   const logItem = { 
     room: ROOM_CODE, cat: app.currentCat, question: q.q, 
     answer: q.type==='mimes' ? "Mime: " + app.mimeWord : q.ans, 
@@ -497,15 +514,15 @@ function exportToSheets() {
     showToast("لا توجد بيانات لتصديرها", true);
     return;
   }
-  let csv = "Room,Category,Question,Answer,Team Answers...\n";
+  let csv = "Room;Category;Question;Answer;Team Answers...\n";
   app.gameLog.forEach(log => {
-    let row = `"${log.room}","${log.cat}","${log.question.replace(/"/g, '""')}","${log.answer.replace(/"/g, '""')}"`;
+    let row = `"${log.room}";"${log.cat}";"${log.question.replace(/"/g, '""')}";"${log.answer.replace(/"/g, '""')}"`;
     Object.entries(log.teamAnswers || {}).forEach(([tn, ans]) => {
-      row += `,"Team ${tn}: ${ans.replace(/"/g, '""')}"`;
+      row += `;"Team ${tn}: ${ans.replace(/"/g, '""')}"`;
     });
     csv += row + "\n";
   });
-  const blob = new Blob(['\\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = `musabaka_export_${ROOM_CODE}.csv`;
@@ -524,19 +541,33 @@ async function checkJuryPin() {
 
 function syncJuryState() {
   if (app.role !== 'jury') return;
-  const q = app.activeQuestion;
+  const q = app.activeQuestion || app.lastFinishedQuestion;
+  const ansObj = app.activeQuestion ? shared.answers : (app.lastFinishedAnswers || {});
+
   if (q) {
     $('jury-q-card').classList.remove('hidden');
-    $('jury-cat').textContent = q.cat; $('jury-pts').textContent = q.pts + " نقطة";
-    $('jury-q-text').textContent = q.qText; $('jury-ans').textContent = q.ans;
-    const rem = Math.max(0, Math.ceil(q.dur - (Date.now() - q.tStart)/1000));
-    $('jury-timer-box').textContent = "⏱ " + rem + " ثانية";
+    $('jury-cat').textContent = q.cat; $('jury-pts').textContent = (q.pts || 1) + " نقطة";
+    $('jury-q-text').textContent = q.qText || q.q; $('jury-ans').textContent = q.ans;
+    if (app.activeQuestion) {
+      const rem = Math.max(0, Math.ceil(q.dur - (Date.now() - q.tStart)/1000));
+      $('jury-timer-box').textContent = "⏱ " + rem + " ثانية";
+    } else {
+      $('jury-timer-box').textContent = "انتهى الوقت";
+    }
   } else { $('jury-q-card').classList.add('hidden'); }
   
   const jAnsList = $('jury-answers-list'); jAnsList.innerHTML = '';
-  Object.entries(shared.answers).forEach(([tn, ans]) => {
+  Object.entries(ansObj).forEach(([tn, ans]) => {
     const d = document.createElement('div'); d.className = 'ans-row';
-    d.innerHTML = `<strong>فريق ${tn}:</strong> <span>${ans}</span>`;
+    let colorStyle = '';
+    if (q && q.type !== 'mimes' && !app.activeQuestion) {
+        if (q.type === 'mcq') {
+            colorStyle = (ans === q.ans) ? 'color: var(--teal2); font-weight:bold;' : 'color: var(--red); text-decoration: line-through;';
+        } else {
+            colorStyle = (ans === q.ans) ? 'color: var(--teal2); font-weight:bold;' : 'color: var(--gold);';
+        }
+    }
+    d.innerHTML = `<strong>فريق ${tn}:</strong> <span style="${colorStyle}">${ans}</span>`;
     jAnsList.appendChild(d);
   });
   
@@ -648,34 +679,3 @@ function runPartTimer(startMs, dur) {
     }
   }
   
-  requestAnimationFrame(updateTimer);
-}
-
-async function sendAnswer(ansParam) {
-  const qRealKey = app.activeQuestion.cat + "_" + app.activeQuestion.qIdx;
-  let ans = ansParam || (app.selectedOpt || ($('part-open-inp') ? $('part-open-inp').value.trim() : null) || "(بدون إجابة)");
-  
-  if (!app.answeredQs.includes(qRealKey)) {
-    app.answeredQs.push(qRealKey); localStorage.setItem('answered_qs', JSON.stringify(app.answeredQs));
-  }
-  
-  $('part-send-btn').classList.add('hidden'); $('part-sent-msg').classList.remove('hidden');
-  app.isTimerRunning = false; 
-
-  const ansData = { teamNum: app.teamNum, ans: ans, qKey: app.activeQuestion.qKey };
-  try {
-    const payload = b64Encode(ansData);
-    await fetch(TOPIC_ANSWERS + ROOM_CODE, { method: 'POST', body: payload });
-  } catch (e) { showToast("Erreur d'envoi", true); }
-}
-
-// ══ ON LOAD ══
-window.onload = async () => {
-  if (ROOM_CODE) {
-    $('room-code-in').value = ROOM_CODE; await initRoom();
-    const role = localStorage.getItem('musabaka_role');
-    if (role === 'supervisor') checkPin();
-    else if (role === 'participant') joinTeam();
-    else if (role === 'jury') checkJuryPin();
-  }
-};
