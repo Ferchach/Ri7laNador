@@ -449,10 +449,13 @@ function nextQ() {
 
 function renderAnswers() {
   const list = $('answers-list'); list.innerHTML = '';
-  const pts = QUESTIONS[app.currentCat] ? QUESTIONS[app.currentCat][app.currentQIdx].pts : 2;
+  const q = QUESTIONS[app.currentCat] ? QUESTIONS[app.currentCat][app.currentQIdx] : null;
+  const pts = q ? (q.pts || 1) : 2;
+  const isAuto = q && q.type === 'mcq';
   Object.entries(shared.answers).forEach(([tn, ans]) => {
     const d = document.createElement('div'); d.className = 'ans-row';
-    d.innerHTML = `<strong>فريق ${tn}</strong> <span style="flex:1; text-align:center;">${ans}</span> <button class="btn btn-teal btn-sm" onclick="grantPts(${tn},${pts})">✓ +${pts}</button>`;
+    let btnHTML = isAuto ? `<span class="muted" style="font-size:0.75rem;">(تصحيح تلقائي)</span>` : `<button class="btn btn-teal btn-sm" onclick="grantPts(${tn},${pts})">✓ +${pts}</button>`;
+    d.innerHTML = `<strong>فريق ${tn}</strong> <span style="flex:1; text-align:center;">${ans}</span> ${btnHTML}`;
     list.appendChild(d);
   });
 }
@@ -623,7 +626,7 @@ function syncParticipantState() {
 }
 
 function handleIncomingQuestion(data) {
-  const qRealKey = data.cat + "_" + data.qIdx;
+  const qRealKey = data.qKey; // Use dynamic qKey so that 'Relaunch' creates a fresh opportunity
   if (app.answeredQs.includes(qRealKey) && data.qType !== 'mimes') {
     goto('screen-participant');
     $('part-waiting').classList.add('hidden'); $('part-q-view').classList.remove('hidden');
@@ -679,3 +682,34 @@ function runPartTimer(startMs, dur) {
     }
   }
   
+  requestAnimationFrame(updateTimer);
+}
+
+async function sendAnswer(ansParam) {
+  const qRealKey = app.activeQuestion.qKey;
+  let ans = ansParam || (app.selectedOpt || ($('part-open-inp') ? $('part-open-inp').value.trim() : null) || "(بدون إجابة)");
+  
+  if (!app.answeredQs.includes(qRealKey)) {
+    app.answeredQs.push(qRealKey); localStorage.setItem('answered_qs', JSON.stringify(app.answeredQs));
+  }
+  
+  $('part-send-btn').classList.add('hidden'); $('part-sent-msg').classList.remove('hidden');
+  app.isTimerRunning = false; 
+
+  const ansData = { teamNum: app.teamNum, ans: ans, qKey: app.activeQuestion.qKey };
+  try {
+    const payload = b64Encode(ansData);
+    await fetch(TOPIC_ANSWERS + ROOM_CODE, { method: 'POST', body: payload });
+  } catch (e) { showToast("Erreur d'envoi", true); }
+}
+
+// ══ ON LOAD ══
+window.onload = async () => {
+  if (ROOM_CODE) {
+    $('room-code-in').value = ROOM_CODE; await initRoom();
+    const role = localStorage.getItem('musabaka_role');
+    if (role === 'supervisor') checkPin();
+    else if (role === 'participant') joinTeam();
+    else if (role === 'jury') checkJuryPin();
+  }
+};
