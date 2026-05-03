@@ -218,9 +218,6 @@
         </div>
         <h3 id="part-q-text" class="q-text"></h3>
         <div id="part-opts-area" class="opts-grid"></div>
-        <div id="part-open-area" class="hidden">
-          <input type="text" id="part-open-inp" placeholder="اكتب إجابتك هنا...">
-        </div>
         <button id="part-send-btn" class="btn btn-teal" onclick="sendAnswer()" style="margin-top:20px;">إرسال الإجابة</button>
         <div id="part-sent-msg" class="card-sm hidden" style="background:rgba(34,197,94,0.1); border:1px solid #22c55e; margin-top:20px; color:#22c55e;">
           ✓ تم إرسال إجابتك - انتظر السؤال التالي
@@ -241,7 +238,7 @@
           <h3 class="gold" style="border-bottom: 1px solid #444; padding-bottom: 0.5rem; margin-bottom: 1rem;">📝 تفاصيل الإجابات</h3>
           <div id="log-container" style="max-height: 400px; overflow-y: auto;"></div>
         </div>
-        <button class="btn btn-outline" onclick="resetCompetition()" style="margin-top:1.5rem; width: 100%;">🔄 حذف الغرفة والبدء من جديد</button>
+        <button class="btn btn-outline" onclick="confirmReset()" style="margin-top:1.5rem; width: 100%;">🔄 حذف الغرفة والبدء من جديد</button>
         <button class="btn btn-outline" onclick="exitRoom()" style="margin-top:0.5rem; width: 100%; border:none;">العودة للرئيسية</button>
       </div>
     </div>
