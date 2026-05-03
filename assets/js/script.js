@@ -175,6 +175,14 @@ async function saveRoomState() {
   }
 }
 
+let debounceSaveTimer = null;
+function requestSaveRoomState() {
+  if (debounceSaveTimer) clearTimeout(debounceSaveTimer);
+  debounceSaveTimer = setTimeout(() => {
+    saveRoomState();
+  }, 500); // 500ms debounce to prevent Rate Limiting (HTTP 429) when multiple teams answer simultaneously
+}
+
 let reconnectTimer = null;
 let retryCount = 0;
 
@@ -208,7 +216,7 @@ function startSyncListener() {
           // Protection contre les réponses obsolètes
           if (app.activeQuestion && ansData.qKey === app.activeQuestion.qKey) {
             shared.answers[ansData.teamNum] = ansData.ans;
-            saveRoomState(); // Republie l'état global, résout les conflits !
+            requestSaveRoomState(); // Debounced save to avoid Rate Limits
             renderAnswers();
           }
         }
@@ -322,6 +330,8 @@ function renderSupQuestion() {
   $('sup-reveal-text').textContent = q.ans;
   $('btn-launch').textContent = '▶ إطلاق السؤال';
   $('btn-launch').disabled = false;
+  $('btn-launch').style.display = 'block';
+  if ($('btn-relaunch')) $('btn-relaunch').style.display = 'none';
   $('sup-q-cat-badge').textContent = app.currentCat;
   $('sup-q-num-badge').textContent = 'سؤال ' + (app.currentQIdx + 1);
   $('sup-q-pts-badge').textContent = (q.pts || 1) + ' نقطة';
@@ -368,6 +378,8 @@ async function launchQuestion() {
 
   $('sup-status-badge').textContent = '⏱ يعمل';
   $('sup-status-badge').className = 'badge badge-teal';
+  $('btn-launch').style.display = 'block';
+  if ($('btn-relaunch')) $('btn-relaunch').style.display = 'none';
   $('btn-launch').disabled = true;
 
   let rem = dur; clearInterval(app.supTimerInt);
@@ -379,7 +391,8 @@ async function launchQuestion() {
 
 async function finishQuestionRound(q) {
   app.isRunning = false; app.activeQuestion = null;
-  $('btn-launch').textContent = '✓ انتهى الوقت';
+  $('btn-launch').style.display = 'none';
+  if ($('btn-relaunch')) $('btn-relaunch').style.display = 'block';
   
   const logItem = { 
     room: ROOM_CODE, cat: app.currentCat, question: q.q, 
@@ -477,6 +490,27 @@ async function confirmReset() {
     await saveRoomState(); // Force reset state over network BEFORE reloading
     localStorage.clear(); location.reload();
   }
+}
+
+function exportToSheets() {
+  if (!app.gameLog || app.gameLog.length === 0) {
+    showToast("لا توجد بيانات لتصديرها", true);
+    return;
+  }
+  let csv = "Room,Category,Question,Answer,Team Answers...\n";
+  app.gameLog.forEach(log => {
+    let row = `"${log.room}","${log.cat}","${log.question.replace(/"/g, '""')}","${log.answer.replace(/"/g, '""')}"`;
+    Object.entries(log.teamAnswers || {}).forEach(([tn, ans]) => {
+      row += `,"Team ${tn}: ${ans.replace(/"/g, '""')}"`;
+    });
+    csv += row + "\n";
+  });
+  const blob = new Blob(['\\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `musabaka_export_${ROOM_CODE}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast("تم تحميل الملف بنجاح ✅");
 }
 
 // ══ JURY ══
