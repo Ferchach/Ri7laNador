@@ -4,6 +4,7 @@
 
 const TOPIC_STATE = "https://ntfy.envs.net/musabaka_v9_state_"; 
 const TOPIC_ANSWERS = "https://ntfy.envs.net/musabaka_v9_answers_"; 
+const TOPIC_EVALS = "https://ntfy.envs.net/musabaka_v9_evals_";
 let ROOM_CODE = localStorage.getItem('musabaka_room_code') || "";
 
 // Hashed Pins
@@ -192,6 +193,7 @@ let retryCount = 0;
 function startSyncListener() {
   if (app.eventSourceState) app.eventSourceState.close();
   if (app.eventSourceAnswers) app.eventSourceAnswers.close();
+  if (app.eventSourceEvals) app.eventSourceEvals.close();
   
   // TOUT LE MONDE écoute le STATE
   app.eventSourceState = new EventSource(TOPIC_STATE + ROOM_CODE + "/sse");
@@ -208,7 +210,7 @@ function startSyncListener() {
     scheduleReconnect();
   };
 
-  // SUPERVISEUR écoute les ANSWERS
+  // SUPERVISEUR écoute les ANSWERS et EVALS
   if (app.role === 'supervisor') {
     app.eventSourceAnswers = new EventSource(TOPIC_ANSWERS + ROOM_CODE + "/sse");
     app.eventSourceAnswers.onmessage = (e) => {
@@ -222,6 +224,20 @@ function startSyncListener() {
             requestSaveRoomState(); // Debounced save to avoid Rate Limits
             renderAnswers();
           }
+        }
+      } catch (err) {}
+    };
+
+    app.eventSourceEvals = new EventSource(TOPIC_EVALS + ROOM_CODE + "/sse");
+    app.eventSourceEvals.onmessage = (e) => {
+      try {
+        const envelope = JSON.parse(e.data);
+        if (envelope.message) {
+          const evalData = b64Decode(envelope.message);
+          let evals = JSON.parse(localStorage.getItem('musabaka_evals') || "[]");
+          evals.push(evalData);
+          localStorage.setItem('musabaka_evals', JSON.stringify(evals));
+          showToast(`تم تلقي تقييم من فريق ${evalData.team}`);
         }
       } catch (err) {}
     };
@@ -290,6 +306,7 @@ async function initRoom() {
 function exitRoom() {
   if (app.eventSourceState) app.eventSourceState.close();
   if (app.eventSourceAnswers) app.eventSourceAnswers.close();
+  if (app.eventSourceEvals) app.eventSourceEvals.close();
   localStorage.clear(); location.reload();
 }
 
@@ -768,4 +785,124 @@ window.onload = async () => {
     else if (role === 'participant') joinTeam();
     else if (role === 'jury') checkJuryPin();
   }
+  if (localStorage.getItem('musabaka_has_evaluated')) {
+    $('eval-form-card')?.classList.add('hidden');
+    $('eval-success-card')?.classList.remove('hidden');
+  }
+  renderEvalQuestions();
 };
+
+// ══ VISIBILITY PENALTY: 0 points if participant leaves during question ══
+document.addEventListener('visibilitychange', () => {
+  if (
+    document.hidden &&
+    app.role === 'participant' &&
+    app.activeQuestion &&
+    app.isTimerRunning &&
+    !app.answeredQs.includes(app.activeQuestion.qKey)
+  ) {
+    // Auto-submit with empty answer = 0 points
+    showToast("⚠️ غادرت الصفحة! تم إرسال إجابة فارغة (0 نقطة)", true);
+    sendAnswer("(مغادرة الصفحة - 0 نقطة)");
+  }
+});
+
+// ══ EVALUATION LOGIC ══
+const EVAL_QUESTIONS = [
+  "تقييم عام للرحلة",
+  "تقييم الوجهة",
+  "تقييم برنامج الرحلة",
+  "تقييم أنشطة الرحلة",
+  "تقييم وجبة الغذاء",
+  "تقييم تنظيم الرحلة",
+  "تقييم المؤطرين"
+];
+const EVAL_OPTIONS = ["سيئة", "لا بأس بها", "مقبولة", "جيدة", "ممتازة"];
+const EVAL_NUMBERS = ["1", "2", "3", "4", "5"];
+
+function renderEvalQuestions() {
+  const container = $('eval-questions');
+  if (!container) return;
+  container.innerHTML = '';
+  EVAL_QUESTIONS.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'eval-q-card';
+    card.innerHTML = `<div class="eval-q-title">${i + 1}. ${q}</div><div class="eval-options" id="eval-opts-${i}"></div>`;
+    container.appendChild(card);
+    
+    const optsContainer = $(`eval-opts-${i}`);
+    const options = q === "تقييم المؤطرين" ? EVAL_NUMBERS : EVAL_OPTIONS;
+    
+    options.forEach(opt => {
+      const btn = document.createElement('div');
+      btn.className = 'eval-opt';
+      btn.textContent = opt;
+      btn.onclick = () => {
+        optsContainer.querySelectorAll('.eval-opt').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        btn.dataset.val = opt;
+      };
+      optsContainer.appendChild(btn);
+    });
+  });
+}
+
+async function submitEvaluation() {
+  const team = $('eval-team').value;
+  const rank = $('eval-rank').value;
+  if (!team || !rank) { showToast("الرجاء إدخال رقم الفريق والرتبة", true); return; }
+  
+  let answers = {};
+  let allAnswered = true;
+  EVAL_QUESTIONS.forEach((q, i) => {
+    const selected = $(`eval-opts-${i}`).querySelector('.eval-opt.selected');
+    if (!selected) allAnswered = false;
+    else answers[q] = selected.dataset.val;
+  });
+  
+  if (!allAnswered) { showToast("الرجاء الإجابة على جميع التقييمات", true); return; }
+  
+  const notes = $('eval-notes').value.trim();
+  const evalData = { team, rank, answers, notes, ts: new Date().toISOString() };
+  
+  $('eval-submit-btn').textContent = "جاري الإرسال...";
+  $('eval-submit-btn').disabled = true;
+  
+  try {
+    const payload = b64Encode(evalData);
+    await fetch(TOPIC_EVALS + ROOM_CODE, { method: 'POST', body: payload });
+    localStorage.setItem('musabaka_has_evaluated', 'true');
+    $('eval-form-card').classList.add('hidden');
+    $('eval-success-card').classList.remove('hidden');
+  } catch (e) {
+    showToast("خطأ في الاتصال. الرجاء المحاولة مرة أخرى.", true);
+    $('eval-submit-btn').textContent = "إرسال التقييم";
+    $('eval-submit-btn').disabled = false;
+  }
+}
+
+function exportEvalsToSheets() {
+  const evals = JSON.parse(localStorage.getItem('musabaka_evals') || "[]");
+  if (evals.length === 0) {
+    showToast("لا توجد تقييمات لتصديرها", true);
+    return;
+  }
+  let csv = "Time;Team;Rank;Notes";
+  EVAL_QUESTIONS.forEach(q => csv += `;"${q}"`);
+  csv += "\n";
+  
+  evals.forEach(ev => {
+    let row = `"${ev.ts}";"${ev.team}";"${ev.rank}";"${(ev.notes || '').replace(/"/g, '""')}"`;
+    EVAL_QUESTIONS.forEach(q => {
+      row += `;"${ev.answers[q] || ''}"`;
+    });
+    csv += row + "\n";
+  });
+  
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `musabaka_evals_${ROOM_CODE}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast("تم تحميل التقييمات بنجاح ✅");
+}
