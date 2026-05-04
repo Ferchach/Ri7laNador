@@ -184,7 +184,7 @@ function requestSaveRoomState() {
   if (debounceSaveTimer) clearTimeout(debounceSaveTimer);
   debounceSaveTimer = setTimeout(() => {
     saveRoomState();
-  }, 500); // 500ms debounce to prevent Rate Limiting (HTTP 429) when multiple teams answer simultaneously
+  }, 2000); // 2000ms debounce - longer delay to batch multiple team answers and avoid Rate Limits (HTTP 429)
 }
 
 let reconnectTimer = null;
@@ -221,7 +221,7 @@ function startSyncListener() {
           if (app.activeQuestion && ansData.qKey === app.activeQuestion.qKey) {
             shared.answers[ansData.teamNum] = ansData.ans;
             if (!app.teams[ansData.teamNum]) app.teams[ansData.teamNum] = { score: 0, name: 'فريق ' + ansData.teamNum };
-            requestSaveRoomState(); // Debounced save to avoid Rate Limits
+            requestSaveRoomState();
             renderAnswers();
           }
         }
@@ -238,6 +238,30 @@ function startSyncListener() {
           evals.push(evalData);
           localStorage.setItem('musabaka_evals', JSON.stringify(evals));
           showToast(`تم تلقي تقييم من فريق ${evalData.team}`);
+        }
+      } catch (err) {}
+    };
+  }
+
+  // JURY écoute aussi les ANSWERS directement (sans passer par le superviseur)
+  if (app.role === 'jury') {
+    app.juryLocalAnswers = app.juryLocalAnswers || {};
+    app.juryLocalAnswersKey = null;
+    app.eventSourceAnswers = new EventSource(TOPIC_ANSWERS + ROOM_CODE + "/sse");
+    app.eventSourceAnswers.onmessage = (e) => {
+      try {
+        const envelope = JSON.parse(e.data);
+        if (envelope.message) {
+          const ansData = b64Decode(envelope.message);
+          const activeQ = app.activeQuestion || app.lastFinishedQuestion;
+          if (activeQ) {
+            if (app.juryLocalAnswersKey !== activeQ.qKey) {
+              app.juryLocalAnswers = {};
+              app.juryLocalAnswersKey = activeQ.qKey;
+            }
+            app.juryLocalAnswers[ansData.teamNum] = ansData.ans;
+            syncJuryState();
+          }
         }
       } catch (err) {}
     };
@@ -358,10 +382,16 @@ function renderSupQuestion() {
   $('sup-q-text').textContent = q.q;
   $('sup-reveal-box').style.display = 'none';
   $('sup-reveal-text').textContent = q.ans;
-  $('btn-launch').textContent = '▶ إطلاق السؤال';
-  $('btn-launch').disabled = false;
-  $('btn-launch').style.display = 'block';
+  // Always fully reset launch button state for new/relaunched question
+  const btnLaunch = $('btn-launch');
+  btnLaunch.textContent = '▶ إطلاق السؤال';
+  btnLaunch.disabled = false;
+  btnLaunch.style.display = 'block';
+  btnLaunch.onclick = launchQuestion;
   if ($('btn-relaunch')) $('btn-relaunch').style.display = 'none';
+  // Re-enable navigation buttons
+  const btnNext = document.getElementById('btn-next'); if (btnNext) btnNext.disabled = false;
+  const btnCancel = document.getElementById('btn-cancel-pick'); if (btnCancel) { btnCancel.style.opacity = '1'; btnCancel.disabled = false; }
   $('sup-q-cat-badge').textContent = app.currentCat;
   $('sup-q-num-badge').textContent = 'سؤال ' + (app.currentQIdx + 1);
   $('sup-q-pts-badge').textContent = (q.pts || 1) + ' نقطة';
@@ -376,8 +406,8 @@ function renderSupQuestion() {
       optsDiv.appendChild(b);
     });
   }
-  const btnCancel = document.getElementById('btn-cancel-pick');
-  if (btnCancel) btnCancel.style.opacity = app.isRunning ? "0.3" : "1";
+  const btnCancel2 = document.getElementById('btn-cancel-pick');
+  if (btnCancel2) { btnCancel2.style.opacity = app.isRunning ? "0.3" : "1"; btnCancel2.disabled = !!app.isRunning; }
 }
 
 async function pickMimeWord() {
@@ -613,7 +643,10 @@ async function checkJuryPin() {
 function syncJuryState() {
   if (app.role !== 'jury') return;
   const q = app.activeQuestion || app.lastFinishedQuestion;
-  const ansObj = app.activeQuestion ? shared.answers : (app.lastFinishedAnswers || {});
+  // Merge state-relayed answers with jury's directly-received answers
+  const stateAns = app.activeQuestion ? shared.answers : (app.lastFinishedAnswers || {});
+  const directAns = (app.juryLocalAnswers && app.juryLocalAnswersKey === (q && q.qKey)) ? app.juryLocalAnswers : {};
+  const ansObj = { ...stateAns, ...directAns };
 
   if (q) {
     $('jury-q-card').classList.remove('hidden');
@@ -848,6 +881,8 @@ function renderEvalQuestions() {
 }
 
 async function submitEvaluation() {
+  const evalRoomCode = ($('eval-room-code').value.trim().toUpperCase()) || ROOM_CODE;
+  if (!evalRoomCode) { showToast("الرجاء إدخال رمز الغرفة", true); return; }
   const team = $('eval-team').value;
   const rank = $('eval-rank').value;
   if (!team || !rank) { showToast("الرجاء إدخال رقم الفريق والرتبة", true); return; }
@@ -863,14 +898,14 @@ async function submitEvaluation() {
   if (!allAnswered) { showToast("الرجاء الإجابة على جميع التقييمات", true); return; }
   
   const notes = $('eval-notes').value.trim();
-  const evalData = { team, rank, answers, notes, ts: new Date().toISOString() };
+  const evalData = { team, rank, answers, notes, room: evalRoomCode, ts: new Date().toISOString() };
   
   $('eval-submit-btn').textContent = "جاري الإرسال...";
   $('eval-submit-btn').disabled = true;
   
   try {
     const payload = b64Encode(evalData);
-    await fetch(TOPIC_EVALS + ROOM_CODE, { method: 'POST', body: payload });
+    await fetch(TOPIC_EVALS + evalRoomCode, { method: 'POST', body: payload });
     localStorage.setItem('musabaka_has_evaluated', 'true');
     $('eval-form-card').classList.add('hidden');
     $('eval-success-card').classList.remove('hidden');
@@ -879,6 +914,45 @@ async function submitEvaluation() {
     $('eval-submit-btn').textContent = "إرسال التقييم";
     $('eval-submit-btn').disabled = false;
   }
+}
+
+function gotoEvaluation() {
+  // Auto-fill room code if already known
+  goto('screen-evaluation');
+  const rcInput = $('eval-room-code');
+  if (rcInput && ROOM_CODE) rcInput.value = ROOM_CODE;
+}
+
+async function forceSyncEvals() {
+  if (!ROOM_CODE || app.role !== 'supervisor') return;
+  try {
+    const res = await fetch(TOPIC_EVALS + ROOM_CODE + "/json?poll=1&since=1d");
+    const text = await res.text();
+    if (!text.trim()) return;
+    const lines = text.trim().split('\n');
+    let newCount = 0;
+    const existing = JSON.parse(localStorage.getItem('musabaka_evals') || "[]");
+    const existingTs = new Set(existing.map(e => e.ts));
+    lines.forEach(line => {
+      try {
+        const msg = JSON.parse(line);
+        if (msg.message) {
+          const evalData = b64Decode(msg.message);
+          if (!existingTs.has(evalData.ts)) {
+            existing.push(evalData);
+            existingTs.add(evalData.ts);
+            newCount++;
+          }
+        }
+      } catch(e) {}
+    });
+    if (newCount > 0) {
+      localStorage.setItem('musabaka_evals', JSON.stringify(existing));
+      showToast(`تم استرجاع ${newCount} تقييم مفقود ✅`);
+    } else {
+      showToast("لا تقييمات جديدة للاسترجاع");
+    }
+  } catch(e) { showToast("خطأ في استرجاع التقييمات", true); }
 }
 
 function exportEvalsToSheets() {
