@@ -164,6 +164,8 @@ async function saveRoomState() {
     teams: app.teams, completedCats: app.completedCats, currentCat: app.currentCat,
     currentQIdx: app.currentQIdx, activeAnswers: shared.answers, activeQuestion: app.activeQuestion,
     lastQ: app.lastFinishedQuestion || null, lastAns: app.lastFinishedAnswers || null,
+    gameEnded: app.gameEnded || false,
+    finalLogs: app.gameEnded ? app.gameLog : null,
     ts: Date.now()
   };
   try {
@@ -214,9 +216,9 @@ function startSyncListener() {
         const envelope = JSON.parse(e.data);
         if (envelope.message) {
           const ansData = b64Decode(envelope.message);
-          // Protection contre les réponses obsolètes
           if (app.activeQuestion && ansData.qKey === app.activeQuestion.qKey) {
             shared.answers[ansData.teamNum] = ansData.ans;
+            if (!app.teams[ansData.teamNum]) app.teams[ansData.teamNum] = { score: 0, name: 'فريق ' + ansData.teamNum };
             requestSaveRoomState(); // Debounced save to avoid Rate Limits
             renderAnswers();
           }
@@ -261,7 +263,14 @@ function applyState(data) {
   
   app.lastFinishedQuestion = data.lastQ || null;
   app.lastFinishedAnswers = data.lastAns || null;
+  if (data.finalLogs) app.gameLog = data.finalLogs;
   
+  if (data.gameEnded && app.role !== 'supervisor') {
+    goto('screen-results');
+    renderFinalResultsUI();
+    return;
+  }
+
   if (app.role === 'participant') syncParticipantState();
   if (app.role === 'jury') syncJuryState();
   if (app.role === 'supervisor') renderScores();
@@ -490,7 +499,12 @@ function supTab(name, el) {
 
 function revealAns() { $('sup-reveal-box').style.display = 'block'; }
 
-function showFinalResults() { goto('screen-results'); renderFinalResultsUI(); }
+function showFinalResults() { 
+  app.gameEnded = true; 
+  saveRoomState();
+  goto('screen-results'); 
+  renderFinalResultsUI(); 
+}
 
 function renderFinalResultsUI() {
   const list = $('final-list'); list.innerHTML = '';
@@ -500,6 +514,26 @@ function renderFinalResultsUI() {
     row.innerHTML = `<span class="medal">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'👏'}</span><span class="result-name">${d.name}</span><span class="result-score">${d.score}</span>`;
     list.appendChild(row);
   });
+
+  const logCont = $('log-container');
+  if (logCont && app.gameLog) {
+    logCont.innerHTML = '';
+    app.gameLog.forEach((log, idx) => {
+      const qDiv = document.createElement('div');
+      qDiv.style.marginBottom = '15px'; qDiv.style.padding = '10px';
+      qDiv.style.background = 'rgba(255,255,255,0.05)'; qDiv.style.borderRadius = '8px';
+      let html = `<strong class="teal" style="font-size:1.1rem;">سؤال ${idx+1} (${log.cat}):</strong> <span style="font-size:1.1rem;">${log.question}</span><br>`;
+      html += `<span class="gold" style="font-size:0.85rem">الجواب الصحيح: ${log.answer}</span><div style="margin-top:8px; font-size:0.9rem">`;
+      Object.entries(log.teamAnswers || {}).forEach(([tn, ans]) => {
+        let isCorrect = (log.answer === ans);
+        let color = isCorrect ? 'var(--teal2)' : 'var(--text2)';
+        html += `<div style="color:${color}; margin-bottom:3px;">فريق ${tn}: ${ans}</div>`;
+      });
+      html += `</div>`;
+      qDiv.innerHTML = html;
+      logCont.appendChild(qDiv);
+    });
+  }
 }
 
 async function confirmReset() {
