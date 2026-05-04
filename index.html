@@ -28,7 +28,7 @@
         <input type="text" id="room-code-in" placeholder="مثال: A1" maxlength="10">
         <button class="btn btn-gold" onclick="initRoom()">دخول الغرفة</button>
         <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
-          <button class="btn btn-outline" style="border-color:var(--teal); color:var(--teal2);" onclick="goto('screen-evaluation')">📝 تقييم الرحلة</button>
+          <button class="btn btn-outline" style="border-color:var(--teal); color:var(--teal2);" onclick="gotoEvaluation()">📝 تقييم الرحلة</button>
         </div>
       </div>
     </div>
@@ -78,6 +78,7 @@
       <div style="display: flex; gap: 8px;">
         <button class="btn btn-sm btn-outline" style="font-size: 0.7rem; padding: 5px 10px; width:auto; margin-top:0;" onclick="exportToSheets()">📊 تصدير اللعبة</button>
         <button class="btn btn-sm btn-outline" style="font-size: 0.7rem; padding: 5px 10px; width:auto; margin-top:0; border-color:var(--teal); color:var(--teal2);" onclick="exportEvalsToSheets()">📝 التقييمات</button>
+        <button class="btn btn-sm btn-outline" style="font-size: 0.7rem; padding: 5px 10px; width:auto; margin-top:0; border-color:#888; color:#aaa;" onclick="forceSyncEvals()" title="استرجاع التقييمات المفقودة">🔄 استرجاع</button>
         <button class="btn btn-sm btn-red" style="font-size: 0.7rem; padding: 5px 10px; width:auto; margin-top:0;" onclick="confirmReset()">🔄 إعادة ضبط</button>
         <button class="btn btn-sm" style="font-size: 0.7rem; padding: 5px 10px; background: #333; width:auto; margin-top:0;" onclick="exitRoom()">🚪 خروج</button>
       </div>
@@ -255,6 +256,12 @@
         <h2 class="gold" style="text-align: center; margin-bottom: 5px;">📝 تقييم الرحلة</h2>
         <p class="muted" style="text-align: center; margin-bottom: 20px; font-size: 0.8rem;">رأيك يهمنا لتحسين تجاربنا القادمة</p>
         
+        <div style="margin-bottom: 15px; background: rgba(20,184,166,0.08); border: 1px solid var(--teal); border-radius: 8px; padding: 10px;">
+          <label style="display:block; margin-bottom:5px; font-weight:bold; color:var(--teal2);">🔑 رمز الغرفة (Room Code)</label>
+          <input type="text" id="eval-room-code" class="input-field" placeholder="أدخل رمز الغرفة (مثال: A1)" maxlength="10" style="width:100%; text-transform:uppercase; text-align:center; font-size:1.2rem; letter-spacing:3px;">
+          <p class="muted" style="font-size:0.7rem; margin-top:4px;">نفس الرمز المستخدم في الغرفة</p>
+        </div>
+
         <div style="margin-bottom: 15px;">
           <label style="display:block; margin-bottom:5px; font-weight:bold; color:var(--gold);">رقم الفريق</label>
           <input type="number" id="eval-team" class="input-field" placeholder="مثال: 1" min="1" max="20" style="width:100%;">
