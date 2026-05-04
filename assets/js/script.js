@@ -519,9 +519,9 @@ function exportToSheets() {
   }
   let csv = "Room;Category;Question;Answer;Team Answers...\n";
   app.gameLog.forEach(log => {
-    let row = `"${log.room}";"${log.cat}";"${log.question.replace(/"/g, '""')}";"${log.answer.replace(/"/g, '""')}"`;
+    let row = `"${log.room || ''}";"${log.cat || ''}";"${(log.question || '').replace(/"/g, '""')}";"${(log.answer || '').replace(/"/g, '""')}"`;
     Object.entries(log.teamAnswers || {}).forEach(([tn, ans]) => {
-      row += `;"Team ${tn}: ${ans.replace(/"/g, '""')}"`;
+      row += `;"Team ${tn}: ${(ans || '').replace(/"/g, '""')}"`;
     });
     csv += row + "\n";
   });
@@ -575,11 +575,16 @@ function syncJuryState() {
   });
   
   const jScoreList = $('jury-scores-list'); jScoreList.innerHTML = '';
-  Object.entries(app.teams).sort((a,b)=>b[1].score-a[1].score).forEach(([tn, d]) => {
-    const row = document.createElement('div'); row.className = 'score-row';
-    row.innerHTML = `<span>${d.name}</span><span class="score-pts">${d.score}</span>`;
-    jScoreList.appendChild(row);
-  });
+  const teamEntries = Object.entries(app.teams);
+  if (teamEntries.length === 0) {
+    jScoreList.innerHTML = '<p class="muted">لا توجد نقاط بعد</p>';
+  } else {
+    teamEntries.sort((a,b)=>b[1].score-a[1].score).forEach(([tn, d]) => {
+      const row = document.createElement('div'); row.className = 'score-row';
+      row.innerHTML = `<span>${d.name}</span><span class="score-pts">${d.score}</span>`;
+      jScoreList.appendChild(row);
+    });
+  }
 }
 
 // ══ PARTICIPANT ══
