@@ -393,19 +393,36 @@ async function launchQuestion() {
   $('sup-status-badge').className = 'badge badge-teal';
   $('btn-launch').style.display = 'block';
   if ($('btn-relaunch')) $('btn-relaunch').style.display = 'none';
-  $('btn-launch').disabled = true;
+  
+  const btnNext = document.getElementById('btn-next');
+  if (btnNext) btnNext.disabled = true;
+  
+  $('btn-launch').disabled = false;
+  $('btn-launch').onclick = forceFinish;
 
   let rem = dur; clearInterval(app.supTimerInt);
   app.supTimerInt = setInterval(() => {
-    rem--; $('btn-launch').textContent = '⏱ ' + rem + ' ثانية';
-    if (rem <= 0) { clearInterval(app.supTimerInt); finishQuestionRound(q); }
+    rem--; $('btn-launch').textContent = '⏹ إنهاء مبكر (' + rem + ' ث)';
+    if (rem <= 0) { forceFinish(); }
   }, 1000);
+}
+
+function forceFinish() {
+  if (app.isRunning && app.activeQuestion) {
+    clearInterval(app.supTimerInt);
+    const q = QUESTIONS[app.currentCat][app.currentQIdx];
+    finishQuestionRound(q);
+  }
 }
 
 async function finishQuestionRound(q) {
   app.isRunning = false; app.activeQuestion = null;
   $('btn-launch').style.display = 'none';
+  $('btn-launch').onclick = launchQuestion; // Reset onclick
   if ($('btn-relaunch')) $('btn-relaunch').style.display = 'block';
+  
+  const btnNext = document.getElementById('btn-next');
+  if (btnNext) btnNext.disabled = false;
   
   if (q.type === 'mcq') {
     Object.entries(shared.answers).forEach(([tn, ans]) => {
@@ -597,7 +614,7 @@ function syncJuryState() {
   Object.entries(ansObj).forEach(([tn, ans]) => {
     const d = document.createElement('div'); d.className = 'ans-row';
     let colorStyle = '';
-    if (q && q.type !== 'mimes' && !app.activeQuestion) {
+    if (q && q.type !== 'mimes') {
         if (q.type === 'mcq') {
             colorStyle = (ans === q.ans) ? 'color: var(--teal2); font-weight:bold;' : 'color: var(--red); text-decoration: line-through;';
         } else {
