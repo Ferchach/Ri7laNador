@@ -27,6 +27,9 @@
         <p class="muted" style="margin-bottom:20px;">أدخل رمز الغرفة للمزامنة</p>
         <input type="text" id="room-code-in" placeholder="مثال: A1" maxlength="10">
         <button class="btn btn-gold" onclick="initRoom()">دخول الغرفة</button>
+        <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
+          <button class="btn btn-outline" style="border-color:var(--teal); color:var(--teal2);" onclick="goto('screen-evaluation')">📝 تقييم الرحلة</button>
+        </div>
       </div>
     </div>
   </div>
@@ -73,7 +76,8 @@
     <div class="sup-header">
       <div id="sup-room-id" style="font-weight:bold; color:var(--gold);"></div>
       <div style="display: flex; gap: 8px;">
-        <button class="btn btn-sm btn-outline" style="font-size: 0.7rem; padding: 5px 10px; width:auto; margin-top:0;" onclick="exportToSheets()">📊 تصدير</button>
+        <button class="btn btn-sm btn-outline" style="font-size: 0.7rem; padding: 5px 10px; width:auto; margin-top:0;" onclick="exportToSheets()">📊 تصدير اللعبة</button>
+        <button class="btn btn-sm btn-outline" style="font-size: 0.7rem; padding: 5px 10px; width:auto; margin-top:0; border-color:var(--teal); color:var(--teal2);" onclick="exportEvalsToSheets()">📝 التقييمات</button>
         <button class="btn btn-sm btn-red" style="font-size: 0.7rem; padding: 5px 10px; width:auto; margin-top:0;" onclick="confirmReset()">🔄 إعادة ضبط</button>
         <button class="btn btn-sm" style="font-size: 0.7rem; padding: 5px 10px; background: #333; width:auto; margin-top:0;" onclick="exitRoom()">🚪 خروج</button>
       </div>
@@ -240,6 +244,50 @@
         </div>
         <button class="btn btn-outline" onclick="confirmReset()" style="margin-top:1.5rem; width: 100%;">🔄 حذف الغرفة والبدء من جديد</button>
         <button class="btn btn-outline" onclick="exitRoom()" style="margin-top:0.5rem; width: 100%; border:none;">العودة للرئيسية</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen: Trip Evaluation -->
+  <div id="screen-evaluation" class="screen">
+    <div class="container" style="padding-bottom: 2rem;">
+      <div id="eval-form-card" class="card" style="text-align: right;">
+        <h2 class="gold" style="text-align: center; margin-bottom: 5px;">📝 تقييم الرحلة</h2>
+        <p class="muted" style="text-align: center; margin-bottom: 20px; font-size: 0.8rem;">رأيك يهمنا لتحسين تجاربنا القادمة</p>
+        
+        <div style="margin-bottom: 15px;">
+          <label style="display:block; margin-bottom:5px; font-weight:bold; color:var(--gold);">رقم الفريق</label>
+          <input type="number" id="eval-team" class="input-field" placeholder="مثال: 1" min="1" max="20" style="width:100%;">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="display:block; margin-bottom:5px; font-weight:bold; color:var(--gold);">رتبتك داخل الفريق</label>
+          <select id="eval-rank" class="input-field" style="width:100%;">
+            <option value="">-- اختر رتبتك --</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+          </select>
+        </div>
+
+        <div class="star-sep" style="text-align:center; margin:20px 0; color:var(--teal);">✦ ✦ ✦</div>
+
+        <div id="eval-questions"></div>
+
+        <div style="margin-top: 20px;">
+          <label style="display:block; margin-bottom:5px; font-weight:bold; color:var(--gold);">ملاحظات أو اقتراحات من أجل التحسين</label>
+          <textarea id="eval-notes" class="input-field" placeholder="اكتب ملاحظاتك هنا..." rows="3" style="width:100%; resize:vertical;"></textarea>
+        </div>
+
+        <button id="eval-submit-btn" class="btn btn-teal" onclick="submitEvaluation()" style="margin-top:20px; width:100%;">إرسال التقييم</button>
+        <button class="btn btn-outline" onclick="goto('screen-room')" style="margin-top:10px; width:100%; border:none;">إلغاء والعودة</button>
+      </div>
+      
+      <div id="eval-success-card" class="card hidden" style="text-align: center;">
+        <div style="font-size:4rem; margin-bottom:10px;">✅</div>
+        <h2 class="teal">شكراً لك!</h2>
+        <p style="margin-top:10px;">تم إرسال تقييمك بنجاح. نقدر وقتك ومساهمتك في التحسين.</p>
+        <button class="btn btn-outline" onclick="goto('screen-room')" style="margin-top:2rem; width:100%;">العودة للرئيسية</button>
       </div>
     </div>
   </div>
