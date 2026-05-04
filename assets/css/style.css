@@ -621,6 +621,48 @@ input::placeholder {
   margin: 0;
 }
 
+/* EVALUATION STYLES */
+.eval-q-card {
+  margin-bottom: 20px;
+  background: var(--bg3);
+  padding: 15px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.eval-q-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.eval-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.eval-opt {
+  flex: 1;
+  text-align: center;
+  padding: 10px 5px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  min-width: 60px;
+}
+
+.eval-opt.selected {
+  background: rgba(212, 168, 67, 0.15);
+  border-color: var(--gold);
+  color: var(--gold);
+  font-weight: 700;
+}
+
 /* RESPONSIVE */
 @media (max-width: 500px) {
   .opts-grid {
