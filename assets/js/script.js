@@ -166,7 +166,7 @@ async function saveRoomState() {
     currentQIdx: app.currentQIdx, activeAnswers: shared.answers, activeQuestion: app.activeQuestion,
     lastQ: app.lastFinishedQuestion || null, lastAns: app.lastFinishedAnswers || null,
     gameEnded: app.gameEnded || false,
-    finalLogs: app.gameEnded ? app.gameLog : null,
+    gameLog: app.gameLog, // Always sync log for mid-game export support
     ts: Date.now()
   };
   try {
@@ -227,6 +227,13 @@ function startSyncListener() {
         }
       } catch (err) { }
     };
+    // Auto-reconnect if answers SSE drops
+    app.eventSourceAnswers.onerror = () => {
+      if (app.eventSourceAnswers.readyState === EventSource.CLOSED) {
+        clearTimeout(app._ansRec);
+        app._ansRec = setTimeout(() => startSyncListener(), 3000);
+      }
+    };
 
     app.eventSourceEvals = new EventSource(TOPIC_EVALS + ROOM_CODE + "/sse");
     app.eventSourceEvals.onmessage = (e) => {
@@ -243,7 +250,7 @@ function startSyncListener() {
     };
   }
 
-  // JURY écoute aussi les ANSWERS directement (sans passer par le superviseur)
+  // JURY écoute aussi les ANSWERS directement
   if (app.role === 'jury') {
     app.juryLocalAnswers = app.juryLocalAnswers || {};
     app.juryLocalAnswersKey = null;
@@ -264,6 +271,13 @@ function startSyncListener() {
           }
         }
       } catch (err) { }
+    };
+    // Auto-reconnect if jury answers SSE drops
+    app.eventSourceAnswers.onerror = () => {
+      if (app.eventSourceAnswers.readyState === EventSource.CLOSED) {
+        clearTimeout(app._juryAnsRec);
+        app._juryAnsRec = setTimeout(() => startSyncListener(), 3000);
+      }
     };
   }
 }
@@ -303,7 +317,8 @@ function applyState(data) {
 
   app.lastFinishedQuestion = data.lastQ || null;
   app.lastFinishedAnswers = data.lastAns || null;
-  if (data.finalLogs) app.gameLog = data.finalLogs;
+  if (data.gameLog) app.gameLog = data.gameLog; // Sync log
+
 
   if (data.gameEnded && app.role !== 'supervisor') {
     goto('screen-results');
@@ -638,19 +653,46 @@ function forceFinish() {
   if (!app.isRunning || !app.activeQuestion) return;
   clearInterval(app.supTimerInt);
 
-  // 2-second grace period to collect late-arriving answers before scoring
-  let grace = 2;
-  $('btn-launch').textContent = `جاري جمع الإجابات... (${grace}ث)`;
+  const savedQKey = app.activeQuestion.qKey;
+  // 5 seconds before question start to catch any clock drift
+  const sinceTs = Math.max(0, Math.floor((app.activeQuestion.tStart - 5000) / 1000));
+
+  $('btn-launch').style.display = 'block';
+  $('btn-launch').textContent = '⏳ جاري جمع الإجابات...';
   $('btn-launch').disabled = true;
-  const graceInt = setInterval(() => {
-    grace--;
-    if ($('btn-launch')) $('btn-launch').textContent = `جاري جمع الإجابات... (${grace}ث)`;
-    if (grace <= 0) {
-      clearInterval(graceInt);
+
+  // Poll ntfy history to recover ALL answers missed by SSE (rate limits, network bursts, etc.)
+  fetch(`${TOPIC_ANSWERS + ROOM_CODE}/json?poll=1&since=${sinceTs}`)
+    .then(res => res.text())
+    .then(text => {
+      if (!text || !text.trim()) return;
+      let recovered = 0;
+      text.trim().split('\n').forEach(line => {
+        try {
+          const msg = JSON.parse(line);
+          if (!msg.message) return;
+          const ansData = b64Decode(msg.message);
+          const cleanAns = String(ansData.ans || '').trim();
+          // Only accept answers for the current question that we haven't received yet
+          if (ansData.qKey === savedQKey && shared.answers[ansData.teamNum] === undefined) {
+            shared.answers[ansData.teamNum] = cleanAns;
+            if (!app.teams[ansData.teamNum]) {
+              app.teams[ansData.teamNum] = { score: 0, name: 'فريق ' + ansData.teamNum };
+            }
+            recovered++;
+          }
+        } catch(e) {}
+      });
+      if (recovered > 0) {
+        renderAnswers();
+        showToast(`✅ تم استرجاع ${recovered} إجابة مفقودة`);
+      }
+    })
+    .catch(() => {}) // On network error, proceed with what we have
+    .finally(() => {
       const q = QUESTIONS[app.currentCat][app.currentQIdx];
       finishQuestionRound(q);
-    }
-  }, 1000);
+    });
 }
 
 async function finishQuestionRound(q) {
@@ -664,7 +706,9 @@ async function finishQuestionRound(q) {
 
   if (q.type === 'mcq') {
     Object.entries(shared.answers).forEach(([tn, ans]) => {
-      if (ans === q.ans) {
+      const cleanAns = String(ans || '').trim().toLowerCase();
+      const cleanTarget = String(q.ans || '').trim().toLowerCase();
+      if (cleanAns === cleanTarget) {
         if (!app.teams[tn]) app.teams[tn] = { score: 0, name: 'فريق ' + tn };
         app.teams[tn].score += (q.pts || 1);
       }
@@ -858,10 +902,12 @@ function syncJuryState() {
     const d = document.createElement('div'); d.className = 'ans-row';
     let colorStyle = '';
     if (q && q.type !== 'mimes') {
+      const cleanAns = String(ans || '').trim().toLowerCase();
+      const cleanTarget = String(q.ans || '').trim().toLowerCase();
       if (q.type === 'mcq') {
-        colorStyle = (ans === q.ans) ? 'color: var(--teal2); font-weight:bold;' : 'color: var(--red); text-decoration: line-through;';
+        colorStyle = (cleanAns === cleanTarget) ? 'color: var(--teal2); font-weight:bold;' : 'color: var(--red); text-decoration: line-through;';
       } else {
-        colorStyle = (ans === q.ans) ? 'color: var(--teal2); font-weight:bold;' : 'color: var(--gold);';
+        colorStyle = (cleanAns === cleanTarget) ? 'color: var(--teal2); font-weight:bold;' : 'color: var(--gold);';
       }
     }
     d.innerHTML = `<strong>فريق ${tn}:</strong> <span style="${colorStyle}">${ans}</span>`;
@@ -987,6 +1033,7 @@ function runPartTimer(startMs, dur) {
 async function sendAnswer(ansParam) {
   const qRealKey = app.activeQuestion.qKey;
   let ans = ansParam || (app.selectedOpt || ($('part-open-inp') ? $('part-open-inp').value.trim() : null) || "(بدون إجابة)");
+  if (typeof ans === 'string') ans = ans.trim();
 
   if (!app.answeredQs.includes(qRealKey)) {
     app.answeredQs.push(qRealKey); localStorage.setItem('answered_qs', JSON.stringify(app.answeredQs));
