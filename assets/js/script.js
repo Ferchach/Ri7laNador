@@ -635,11 +635,22 @@ async function launchQuestion() {
 
 function forceFinish() {
   if (app.mimeRound) return; // Mimes use their own timer
-  if (app.isRunning && app.activeQuestion) {
-    clearInterval(app.supTimerInt);
-    const q = QUESTIONS[app.currentCat][app.currentQIdx];
-    finishQuestionRound(q);
-  }
+  if (!app.isRunning || !app.activeQuestion) return;
+  clearInterval(app.supTimerInt);
+
+  // 2-second grace period to collect late-arriving answers before scoring
+  let grace = 2;
+  $('btn-launch').textContent = `جاري جمع الإجابات... (${grace}ث)`;
+  $('btn-launch').disabled = true;
+  const graceInt = setInterval(() => {
+    grace--;
+    if ($('btn-launch')) $('btn-launch').textContent = `جاري جمع الإجابات... (${grace}ث)`;
+    if (grace <= 0) {
+      clearInterval(graceInt);
+      const q = QUESTIONS[app.currentCat][app.currentQIdx];
+      finishQuestionRound(q);
+    }
+  }, 1000);
 }
 
 async function finishQuestionRound(q) {
@@ -792,14 +803,15 @@ async function confirmReset() {
 
 function exportToSheets() {
   if (!app.gameLog || app.gameLog.length === 0) {
-    showToast("لا توجد بيانات لتصديرها", true);
+    showToast("لا توجد بيانات لتصديرها. أتمم سؤالاً واحداً على الأقل.", true);
     return;
   }
-  let csv = "Room;Category;Question;Answer;Team Answers...\n";
+  let csv = "Room;Category;Question;Correct Answer;Team Answers...\n";
   app.gameLog.forEach(log => {
-    let row = `"${log.room || ''}";"${log.cat || ''}";"${(log.question || '').replace(/"/g, '""')}";"${(log.answer || '').replace(/"/g, '""')}"`;
+    const safeStr = (v) => String(v ?? '').replace(/"/g, '""');
+    let row = `"${safeStr(log.room)}";"${safeStr(log.cat)}";"${safeStr(log.question)}";"${safeStr(log.answer)}"`;
     Object.entries(log.teamAnswers || {}).forEach(([tn, ans]) => {
-      row += `;"Team ${tn}: ${(ans || '').replace(/"/g, '""')}"`;
+      row += `;"Team ${tn}: ${safeStr(ans)}"`;
     });
     csv += row + "\n";
   });
@@ -808,6 +820,7 @@ function exportToSheets() {
   const a = document.createElement('a');
   a.href = url; a.download = `musabaka_export_${ROOM_CODE}.csv`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
   showToast("تم تحميل الملف بنجاح ✅");
 }
 
