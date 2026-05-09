@@ -2,8 +2,8 @@
 // MUSABAKA THAQAFIYA - V9 DUAL-CHANNEL ARCHITECTURE
 // ============================================================================
 
-const TOPIC_STATE = "https://ntfy.envs.net/musabaka_v9_state_"; 
-const TOPIC_ANSWERS = "https://ntfy.envs.net/musabaka_v9_answers_"; 
+const TOPIC_STATE = "https://ntfy.envs.net/musabaka_v9_state_";
+const TOPIC_ANSWERS = "https://ntfy.envs.net/musabaka_v9_answers_";
 const TOPIC_EVALS = "https://ntfy.envs.net/musabaka_v9_evals_";
 let ROOM_CODE = localStorage.getItem('musabaka_room_code') || "";
 
@@ -88,7 +88,7 @@ const QUESTIONS = {
   "🎭 Mimes": [
     {
       q: "Mimes — كل ممثل يختار كلمة ويوصل معناها بالحركات فقط خلال 90 ثانية", type: "mimes",
-      words: ["فيلسوف", "صبورة", "ممثل", "طبيب الأسنان", "صياد سمك", "ملاكم", "حلاق", "تلفاز", "سرير", "كتاب", "حاسوب", "أستاذ", "قاضي", "قبطان", "سباح"],
+      words: ["فيلسوف", "صبورة", "ممثل", "طبيب الأسنان", "صياد سمك", "حلبة ملاكمة", "حلاق", "تلفاز", "سرير", "كتاب", "حاسوب", "أستاذ", "قاضي", "قبطان", "سباح"],
       ans: "(تقديرية)", pts: 3
     }
   ]
@@ -97,9 +97,9 @@ const QUESTIONS = {
 // ══ STATE ══
 const app = {
   role: null, teamNum: null, teams: {}, currentCat: null, currentQIdx: 0,
-  completedCats: [], gameLog: JSON.parse(localStorage.getItem('musabaka_log') || "[]"), 
+  completedCats: [], gameLog: JSON.parse(localStorage.getItem('musabaka_log') || "[]"),
   answeredQs: JSON.parse(localStorage.getItem('answered_qs') || "[]"),
-  supTimerInt: null, eventSourceState: null, eventSourceAnswers: null, selectedOpt: null, isRunning: false, 
+  supTimerInt: null, eventSourceState: null, eventSourceAnswers: null, selectedOpt: null, isRunning: false,
   mimeWord: null, activeQuestion: null, lastQKey: null, isTimerRunning: false
 };
 const shared = { answers: {} };
@@ -117,7 +117,7 @@ function playGong() {
     gain.gain.setValueAtTime(1, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1);
     osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 1);
-  } catch(e) {}
+  } catch (e) { }
 }
 
 function vibrateDevice() {
@@ -134,7 +134,7 @@ function $(id) { return document.getElementById(id); }
 
 function showToast(msg, isError = false) {
   let t = document.getElementById('musabaka-toast');
-  if(!t) {
+  if (!t) {
     t = document.createElement('div');
     t.id = 'musabaka-toast';
     t.style.position = 'fixed'; t.style.bottom = '20px'; t.style.left = '50%';
@@ -174,7 +174,7 @@ async function saveRoomState() {
     const res = await fetch(TOPIC_STATE + ROOM_CODE, { method: 'POST', body: payload });
     if (!res.ok) throw new Error("HTTP " + res.status);
     showToast("✅ تم حفظ وإرسال البيانات");
-  } catch(e) {
+  } catch (e) {
     showToast("❌ خطأ في الإرسال: تأكد من الإنترنت", true);
   }
 }
@@ -194,7 +194,7 @@ function startSyncListener() {
   if (app.eventSourceState) app.eventSourceState.close();
   if (app.eventSourceAnswers) app.eventSourceAnswers.close();
   if (app.eventSourceEvals) app.eventSourceEvals.close();
-  
+
   // TOUT LE MONDE écoute le STATE
   app.eventSourceState = new EventSource(TOPIC_STATE + ROOM_CODE + "/sse");
   app.eventSourceState.onopen = () => { updateSyncStatus('online', "متصل ✅"); retryCount = 0; };
@@ -202,7 +202,7 @@ function startSyncListener() {
     try {
       const envelope = JSON.parse(e.data);
       if (envelope.message) applyState(b64Decode(envelope.message));
-    } catch (err) {}
+    } catch (err) { }
   };
   app.eventSourceState.onerror = () => {
     updateSyncStatus('offline', "جاري الاتصال...");
@@ -225,7 +225,7 @@ function startSyncListener() {
             renderAnswers();
           }
         }
-      } catch (err) {}
+      } catch (err) { }
     };
 
     app.eventSourceEvals = new EventSource(TOPIC_EVALS + ROOM_CODE + "/sse");
@@ -239,7 +239,7 @@ function startSyncListener() {
           localStorage.setItem('musabaka_evals', JSON.stringify(evals));
           showToast(`تم تلقي تقييم من فريق ${evalData.team}`);
         }
-      } catch (err) {}
+      } catch (err) { }
     };
   }
 
@@ -263,7 +263,7 @@ function startSyncListener() {
             syncJuryState();
           }
         }
-      } catch (err) {}
+      } catch (err) { }
     };
   }
 }
@@ -285,12 +285,12 @@ async function forceSync() {
       const lastMsg = JSON.parse(lines[lines.length - 1]);
       applyState(b64Decode(lastMsg.message));
     }
-  } catch(e) {}
+  } catch (e) { }
 }
 
 function applyState(data) {
-  if(!data) return;
-  
+  if (!data) return;
+
   // Détecter un Reset de la salle
   if (Object.keys(data.teams).length === 0 && Object.keys(app.teams).length > 0) {
     app.answeredQs = [];
@@ -300,11 +300,11 @@ function applyState(data) {
   app.teams = data.teams || {}; app.completedCats = data.completedCats || [];
   app.currentCat = data.currentCat || null; app.currentQIdx = data.currentQIdx || 0;
   shared.answers = data.activeAnswers || {}; app.activeQuestion = data.activeQuestion || null;
-  
+
   app.lastFinishedQuestion = data.lastQ || null;
   app.lastFinishedAnswers = data.lastAns || null;
   if (data.finalLogs) app.gameLog = data.finalLogs;
-  
+
   if (data.gameEnded && app.role !== 'supervisor') {
     goto('screen-results');
     renderFinalResultsUI();
@@ -321,9 +321,9 @@ async function initRoom() {
   const code = $('room-code-in').value.trim().toUpperCase();
   if (!code) { alert("أدخل رمز الغرفة أولاً"); return; }
   ROOM_CODE = code; localStorage.setItem('musabaka_room_code', ROOM_CODE);
-  
-  startSyncListener(); 
-  forceSync(); 
+
+  startSyncListener();
+  forceSync();
   goto('screen-role');
 }
 
@@ -361,11 +361,11 @@ function buildCatGrid() {
   });
 }
 
-function pickCat(cat, done) { 
+function pickCat(cat, done) {
   if (app.isRunning) return;
   if (done && !confirm("هذا الصنف مكتمل. إعادة فتحه؟")) return;
-  app.currentCat = cat; app.currentQIdx = 0; 
-  buildCatGrid(); renderSupQuestion(); saveRoomState(); 
+  app.currentCat = cat; app.currentQIdx = 0;
+  buildCatGrid(); renderSupQuestion(); saveRoomState();
 }
 
 function cancelPick() {
@@ -377,7 +377,7 @@ function cancelPick() {
 
 function renderSupQuestion() {
   const q = QUESTIONS[app.currentCat][app.currentQIdx];
-  if(!q) return;
+  if (!q) return;
   $('sup-q-card').style.display = 'block';
   $('sup-q-text').textContent = q.q;
   $('sup-reveal-box').style.display = 'none';
@@ -395,10 +395,18 @@ function renderSupQuestion() {
   $('sup-q-cat-badge').textContent = app.currentCat;
   $('sup-q-num-badge').textContent = 'سؤال ' + (app.currentQIdx + 1);
   $('sup-q-pts-badge').textContent = (q.pts || 1) + ' نقطة';
-  
+
   const optsDiv = $('sup-q-opts'); optsDiv.innerHTML = '';
   if (app.currentCat === '🎭 Mimes') {
-    optsDiv.innerHTML = "<button class='btn btn-gold' onclick='pickMimeWord()'>🎲 اختيار كلمة عشوائية</button>";
+    optsDiv.innerHTML = `
+      <div style="background:rgba(212,168,67,0.08); border:1px solid var(--gold); border-radius:10px; padding:15px; text-align:center;">
+        <p class="muted" style="margin-bottom:10px; font-size:0.85rem;">تحديد عدد الفرق المشاركة في جولة الميمز</p>
+        <div style="display:flex; gap:8px; justify-content:center; align-items:center; margin-bottom:10px;">
+          <input type="number" id="mime-num-teams" min="1" max="20" value="${Object.keys(app.teams).length || 2}" style="width:70px; text-align:center; font-size:1.2rem; padding:8px;">
+          <span class="muted">فريق</span>
+        </div>
+        <button class="btn btn-gold" onclick="startMimesRound()">🎭 بدء جولة الميمز</button>
+      </div>`;
   } else if (q.type === 'mcq') {
     q.opts.forEach(o => {
       const b = document.createElement('div'); b.className = 'opt-btn'; b.textContent = o;
@@ -410,28 +418,199 @@ function renderSupQuestion() {
   if (btnCancel2) { btnCancel2.style.opacity = app.isRunning ? "0.3" : "1"; btnCancel2.disabled = !!app.isRunning; }
 }
 
-async function pickMimeWord() {
-  const q = QUESTIONS[app.currentCat][0];
-  const idx = Math.floor(Math.random() * q.words.length);
-  app.mimeWord = q.words[idx];
-  $('sup-reveal-text').textContent = app.mimeWord;
-  $('sup-reveal-box').style.display = 'block';
+// ══ MIMES ROUND - TEAM BY TEAM ══
+function startMimesRound() {
+  const numTeams = parseInt($('mime-num-teams')?.value) || 2;
+  if (numTeams < 1) { showToast('أدخل عددًا صحيحًا', true); return; }
+
+  // Ensure all teams exist in app.teams
+  for (let i = 1; i <= numTeams; i++) {
+    if (!app.teams[i]) app.teams[i] = { score: 0, name: 'فريق ' + i };
+  }
+
+  app.mimeRound = {
+    numTeams,
+    currentTeamIdx: 0,      // 0-based index
+    usedWords: [],
+    results: {},
+    pts: QUESTIONS['🎭 Mimes'][0].pts || 3
+  };
+
+  app.isRunning = true;
+  if ($('btn-cancel-pick')) $('btn-cancel-pick').disabled = true;
+  if ($('btn-next')) $('btn-next').disabled = true;
+  if ($('btn-launch')) $('btn-launch').style.display = 'none';
+  if ($('btn-relaunch')) $('btn-relaunch').style.display = 'none';
+
+  mimePickWord();
+}
+
+function mimePickWord() {
+  const round = app.mimeRound;
+  const allWords = QUESTIONS['🎭 Mimes'][0].words;
+  const available = allWords.filter(w => !round.usedWords.includes(w));
+
+  if (available.length === 0) {
+    showToast('تم استخدام جميع الكلمات! جاري إعادة القائمة', true);
+    round.usedWords = []; // Reset and retry
+  }
+
+  const availableNow = allWords.filter(w => !round.usedWords.includes(w));
+  const word = availableNow[Math.floor(Math.random() * availableNow.length)];
+  round.usedWords.push(word);
+  round.currentWord = word;
+
+  const teamNum = round.currentTeamIdx + 1;
+  const optsDiv = $('sup-q-opts');
+  optsDiv.innerHTML = `
+    <div style="background:rgba(212,168,67,0.08); border:1px solid var(--gold); border-radius:12px; padding:18px; text-align:center;">
+      <p class="muted" style="font-size:0.8rem; margin-bottom:5px;">دور الفريق</p>
+      <h2 class="gold" style="font-size:2rem; margin-bottom:5px;">فريق ${teamNum}</h2>
+      <p class="muted" style="font-size:0.7rem; margin-bottom:12px;">الفريق ${teamNum} من ${round.numTeams}</p>
+      <div style="background:rgba(20,184,166,0.1); border:1px dashed var(--teal); border-radius:8px; padding:10px; margin-bottom:15px;">
+        <p class="muted" style="font-size:0.7rem;">الكلمة السرية</p>
+        <p id="mime-word-display" style="font-size:1.8rem; font-weight:900; color:var(--teal);">${word}</p>
+      </div>
+      <button class="btn btn-teal" onclick="mimeLaunchTimer()" style="width:100%;">▶ إطلاق المؤقت (90ث)</button>
+    </div>`;
+
+  $('sup-status-badge').textContent = `دور فريق ${teamNum}`;
+  $('sup-status-badge').className = 'badge badge-gold';
+  $('sup-reveal-box').style.display = 'none';
+
+  // Broadcast to jury/participants
+  const now = Date.now();
+  app.activeQuestion = {
+    cat: '🎭 Mimes', qIdx: 0,
+    qText: `🎭 ميمز — دور فريق ${teamNum} من ${round.numTeams}`,
+    qType: 'mimes', opts: [], tStart: now, dur: 90,
+    ans: '(تقديرية)', pts: round.pts, qKey: 'MIME_' + now
+  };
+  saveRoomState();
+}
+
+function mimeLaunchTimer() {
+  const round = app.mimeRound;
+  const teamNum = round.currentTeamIdx + 1;
+  const optsDiv = $('sup-q-opts');
+
+  optsDiv.innerHTML = `
+    <div style="background:rgba(212,168,67,0.08); border:1px solid var(--gold); border-radius:12px; padding:18px; text-align:center;">
+      <p class="muted" style="font-size:0.8rem;">فريق ${teamNum} — الكلمة: <strong class="teal" style="font-size:1.1rem;">${round.currentWord}</strong></p>
+      <div id="mime-timer-display" style="font-size:3rem; font-weight:900; color:var(--teal); margin:15px 0;">90</div>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button class="btn btn-teal" onclick="mimeFound()" style="flex:2; font-size:1rem;">✅ وجدها! (+${round.pts})</button>
+        <button class="btn btn-red" onclick="mimeNotFound()" style="flex:1; font-size:0.9rem;">✗ لم يجد (0)</button>
+      </div>
+    </div>`;
+
+  let rem = 90;
+  clearInterval(app.supTimerInt);
+  app.supTimerInt = setInterval(() => {
+    rem--;
+    const el = $('mime-timer-display');
+    if (el) {
+      el.textContent = rem;
+      el.style.color = rem <= 10 ? 'var(--red)' : 'var(--teal)';
+    }
+    if (rem <= 0) {
+      clearInterval(app.supTimerInt);
+      playGong();
+      mimeNotFound();
+    }
+  }, 1000);
+
+  $('sup-status-badge').textContent = `⏱ فريق ${teamNum}`;
+  $('sup-status-badge').className = 'badge badge-teal';
+}
+
+function mimeFound() {
+  clearInterval(app.supTimerInt);
+  const round = app.mimeRound;
+  const teamNum = round.currentTeamIdx + 1;
+  app.teams[teamNum].score += round.pts;
+  round.results[teamNum] = round.pts;
+  showToast(`فريق ${teamNum}: أحسنت! +${round.pts} نقاط 🌟`);
+  renderScores();
+  mimeNextTeam();
+}
+
+function mimeNotFound() {
+  clearInterval(app.supTimerInt);
+  const round = app.mimeRound;
+  const teamNum = round.currentTeamIdx + 1;
+  round.results[teamNum] = 0;
+  showToast(`فريق ${teamNum}: انتهى الوقت — 0 نقاط`, true);
+  mimeNextTeam();
+}
+
+function mimeNextTeam() {
+  const round = app.mimeRound;
+  round.currentTeamIdx++;
+
+  if (round.currentTeamIdx >= round.numTeams) {
+    finishMimesRound();
+  } else {
+    // Small delay before showing next team
+    setTimeout(() => mimePickWord(), 800);
+  }
+}
+
+async function finishMimesRound() {
+  app.isRunning = false;
+  app.activeQuestion = null;
+  clearInterval(app.supTimerInt);
+
+  // Log the whole mime round
+  const round = app.mimeRound;
+  const logItem = {
+    room: ROOM_CODE, cat: '🎭 Mimes',
+    question: 'جولة الميمز',
+    answer: JSON.stringify(round.usedWords),
+    teamAnswers: round.results
+  };
+  app.gameLog.push(logItem);
+  localStorage.setItem('musabaka_log', JSON.stringify(app.gameLog));
+  app.mimeRound = null;
+
+  // Re-enable nav buttons
+  if ($('btn-cancel-pick')) $('btn-cancel-pick').disabled = false;
+  if ($('btn-next')) $('btn-next').disabled = false;
+
+  renderScores();
+  await saveRoomState();
+
+  $('sup-status-badge').textContent = 'جولة الميمز انتهت!';
+  $('sup-status-badge').className = 'badge badge-teal';
+
+  const optsDiv = $('sup-q-opts');
+  optsDiv.innerHTML = `
+    <div style="background:rgba(20,184,166,0.1); border:1px solid var(--teal); border-radius:10px; padding:15px; text-align:center;">
+      <p style="font-size:1.2rem; font-weight:bold; color:var(--teal);">✅ انتهت جولة الميمز!</p>
+      <div style="margin-top:10px;">
+        ${Object.entries(round.results).map(([t, p]) =>
+          `<div class="score-row"><span>فريق ${t}</span><span class="score-pts" style="color:${p > 0 ? 'var(--teal2)' : 'var(--red)'}">${p > 0 ? '+' + p : '0'}</span></div>`
+        ).join('')}
+      </div>
+    </div>`;
+  if ($('btn-launch')) { $('btn-launch').style.display = 'none'; }
+  if ($('btn-relaunch')) $('btn-relaunch').style.display = 'block';
 }
 
 async function launchQuestion() {
+  if (app.currentCat === '🎭 Mimes') return; // Mimes handled by startMimesRound
   const q = QUESTIONS[app.currentCat][app.currentQIdx];
-  const dur = q.type === 'mimes' ? 90 : 30;
+  const dur = 30;
   const now = Date.now();
   shared.answers = {}; renderAnswers();
 
   app.isRunning = true;
-  if($('btn-cancel-pick')) $('btn-cancel-pick').disabled = true;
+  if ($('btn-cancel-pick')) $('btn-cancel-pick').disabled = true;
 
   app.activeQuestion = {
     cat: app.currentCat, qIdx: app.currentQIdx,
-    qText: q.type === 'mimes' ? "🎭 جولة الميمز: التعبير بالحركات فقط" : q.q,
-    qType: q.type, opts: q.opts || [],
-    tStart: now, dur: dur, ans: q.ans, pts: q.pts || 1, qKey: "Q_" + now 
+    qText: q.q, qType: q.type, opts: q.opts || [],
+    tStart: now, dur: dur, ans: q.ans, pts: q.pts || 1, qKey: "Q_" + now
   };
 
   await saveRoomState();
@@ -440,10 +619,10 @@ async function launchQuestion() {
   $('sup-status-badge').className = 'badge badge-teal';
   $('btn-launch').style.display = 'block';
   if ($('btn-relaunch')) $('btn-relaunch').style.display = 'none';
-  
+
   const btnNext = document.getElementById('btn-next');
   if (btnNext) btnNext.disabled = true;
-  
+
   $('btn-launch').disabled = false;
   $('btn-launch').onclick = forceFinish;
 
@@ -455,6 +634,7 @@ async function launchQuestion() {
 }
 
 function forceFinish() {
+  if (app.mimeRound) return; // Mimes use their own timer
   if (app.isRunning && app.activeQuestion) {
     clearInterval(app.supTimerInt);
     const q = QUESTIONS[app.currentCat][app.currentQIdx];
@@ -467,40 +647,40 @@ async function finishQuestionRound(q) {
   $('btn-launch').style.display = 'none';
   $('btn-launch').onclick = launchQuestion; // Reset onclick
   if ($('btn-relaunch')) $('btn-relaunch').style.display = 'block';
-  
+
   const btnNext = document.getElementById('btn-next');
   if (btnNext) btnNext.disabled = false;
-  
+
   if (q.type === 'mcq') {
     Object.entries(shared.answers).forEach(([tn, ans]) => {
       if (ans === q.ans) {
-        if (!app.teams[tn]) app.teams[tn] = { score: 0, name: 'فريق ' + tn }; 
-        app.teams[tn].score += (q.pts || 1); 
+        if (!app.teams[tn]) app.teams[tn] = { score: 0, name: 'فريق ' + tn };
+        app.teams[tn].score += (q.pts || 1);
       }
     });
     renderScores(); renderAnswers();
   }
 
   app.lastFinishedQuestion = q;
-  app.lastFinishedAnswers = {...shared.answers};
+  app.lastFinishedAnswers = { ...shared.answers };
 
-  const logItem = { 
-    room: ROOM_CODE, cat: app.currentCat, question: q.q, 
-    answer: q.type==='mimes' ? "Mime: " + app.mimeWord : q.ans, 
-    teamAnswers: {...shared.answers} 
+  const logItem = {
+    room: ROOM_CODE, cat: app.currentCat, question: q.q,
+    answer: q.type === 'mimes' ? "Mime: " + app.mimeWord : q.ans,
+    teamAnswers: { ...shared.answers }
   };
   app.gameLog.push(logItem);
-  localStorage.setItem('musabaka_log', JSON.stringify(app.gameLog)); 
-  
+  localStorage.setItem('musabaka_log', JSON.stringify(app.gameLog));
+
   await saveRoomState();
-  
+
   $('sup-status-badge').textContent = 'انتهى الوقت';
   $('sup-status-badge').className = 'badge badge-red';
 
   const url = $('sheets-url').value;
   if (url) {
     localStorage.setItem('sheets_webhook', url);
-    fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(logItem) }).catch(e=>{});
+    fetch(url, { method: 'POST', mode: 'no-cors', body: JSON.stringify(logItem) }).catch(e => { });
   }
 }
 
@@ -508,10 +688,10 @@ function nextQ() {
   const qs = QUESTIONS[app.currentCat];
   const isLast = app.currentQIdx >= qs.length - 1;
   if (isLast && !confirm("هل تريد إنهاء هذا الصنف؟")) return;
-  
+
   app.activeQuestion = null; app.isRunning = false; clearInterval(app.supTimerInt);
 
-  if (!isLast) { app.currentQIdx++; renderSupQuestion(); } 
+  if (!isLast) { app.currentQIdx++; renderSupQuestion(); }
   else {
     if (!app.completedCats.includes(app.currentCat)) app.completedCats.push(app.currentCat);
     app.currentCat = null; app.currentQIdx = 0;
@@ -535,47 +715,47 @@ function renderAnswers() {
 
 function renderScores() {
   const list = $('scores-list'); list.innerHTML = '';
-  Object.entries(app.teams).sort((a,b)=>b[1].score-a[1].score).forEach(([tn, d]) => {
+  Object.entries(app.teams).sort((a, b) => b[1].score - a[1].score).forEach(([tn, d]) => {
     const row = document.createElement('div'); row.className = 'score-row';
     row.innerHTML = `<span>${d.name}</span><span class="score-pts">${d.score}</span>`;
     list.appendChild(row);
   });
 }
 
-function grantPts(tn, p) { 
-  if (!app.teams[tn]) app.teams[tn] = { score: 0, name: 'فريق ' + tn }; 
-  app.teams[tn].score += p; 
-  renderScores(); renderAnswers(); saveRoomState(); 
+function grantPts(tn, p) {
+  if (!app.teams[tn]) app.teams[tn] = { score: 0, name: 'فريق ' + tn };
+  app.teams[tn].score += p;
+  renderScores(); renderAnswers(); saveRoomState();
 }
 
-function addManual() { 
-  const t = parseInt($('manual-team').value); 
-  const p = parseInt($('manual-pts').value) || 1; 
-  if (!t) return; grantPts(t,p); 
+function addManual() {
+  const t = parseInt($('manual-team').value);
+  const p = parseInt($('manual-pts').value) || 1;
+  if (!t) return; grantPts(t, p);
 }
 
-function supTab(name, el) { 
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); 
-  el.classList.add('active'); 
-  $('stab-cat').classList.add('hidden'); $('stab-scores').classList.add('hidden'); 
-  $('stab-answers').classList.add('hidden'); $('stab-' + name).classList.remove('hidden'); 
+function supTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  $('stab-cat').classList.add('hidden'); $('stab-scores').classList.add('hidden');
+  $('stab-answers').classList.add('hidden'); $('stab-' + name).classList.remove('hidden');
 }
 
 function revealAns() { $('sup-reveal-box').style.display = 'block'; }
 
-function showFinalResults() { 
-  app.gameEnded = true; 
+function showFinalResults() {
+  app.gameEnded = true;
   saveRoomState();
-  goto('screen-results'); 
-  renderFinalResultsUI(); 
+  goto('screen-results');
+  renderFinalResultsUI();
 }
 
 function renderFinalResultsUI() {
   const list = $('final-list'); list.innerHTML = '';
-  Object.entries(app.teams).sort((a,b)=>b[1].score-a[1].score).forEach(([tn, d], i) => {
+  Object.entries(app.teams).sort((a, b) => b[1].score - a[1].score).forEach(([tn, d], i) => {
     const row = document.createElement('div'); row.className = 'result-item';
-    if(i===0) row.classList.add('r1'); else if(i===1) row.classList.add('r2'); else if(i===2) row.classList.add('r3');
-    row.innerHTML = `<span class="medal">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'👏'}</span><span class="result-name">${d.name}</span><span class="result-score">${d.score}</span>`;
+    if (i === 0) row.classList.add('r1'); else if (i === 1) row.classList.add('r2'); else if (i === 2) row.classList.add('r3');
+    row.innerHTML = `<span class="medal">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '👏'}</span><span class="result-name">${d.name}</span><span class="result-score">${d.score}</span>`;
     list.appendChild(row);
   });
 
@@ -586,7 +766,7 @@ function renderFinalResultsUI() {
       const qDiv = document.createElement('div');
       qDiv.style.marginBottom = '15px'; qDiv.style.padding = '10px';
       qDiv.style.background = 'rgba(255,255,255,0.05)'; qDiv.style.borderRadius = '8px';
-      let html = `<strong class="teal" style="font-size:1.1rem;">سؤال ${idx+1} (${log.cat}):</strong> <span style="font-size:1.1rem;">${log.question}</span><br>`;
+      let html = `<strong class="teal" style="font-size:1.1rem;">سؤال ${idx + 1} (${log.cat}):</strong> <span style="font-size:1.1rem;">${log.question}</span><br>`;
       html += `<span class="gold" style="font-size:0.85rem">الجواب الصحيح: ${log.answer}</span><div style="margin-top:8px; font-size:0.9rem">`;
       Object.entries(log.teamAnswers || {}).forEach(([tn, ans]) => {
         let isCorrect = (log.answer === ans);
@@ -653,34 +833,34 @@ function syncJuryState() {
     $('jury-cat').textContent = q.cat; $('jury-pts').textContent = (q.pts || 1) + " نقطة";
     $('jury-q-text').textContent = q.qText || q.q; $('jury-ans').textContent = q.ans;
     if (app.activeQuestion) {
-      const rem = Math.max(0, Math.ceil(q.dur - (Date.now() - q.tStart)/1000));
+      const rem = Math.max(0, Math.ceil(q.dur - (Date.now() - q.tStart) / 1000));
       $('jury-timer-box').textContent = "⏱ " + rem + " ثانية";
     } else {
       $('jury-timer-box').textContent = "انتهى الوقت";
     }
   } else { $('jury-q-card').classList.add('hidden'); }
-  
+
   const jAnsList = $('jury-answers-list'); jAnsList.innerHTML = '';
   Object.entries(ansObj).forEach(([tn, ans]) => {
     const d = document.createElement('div'); d.className = 'ans-row';
     let colorStyle = '';
     if (q && q.type !== 'mimes') {
-        if (q.type === 'mcq') {
-            colorStyle = (ans === q.ans) ? 'color: var(--teal2); font-weight:bold;' : 'color: var(--red); text-decoration: line-through;';
-        } else {
-            colorStyle = (ans === q.ans) ? 'color: var(--teal2); font-weight:bold;' : 'color: var(--gold);';
-        }
+      if (q.type === 'mcq') {
+        colorStyle = (ans === q.ans) ? 'color: var(--teal2); font-weight:bold;' : 'color: var(--red); text-decoration: line-through;';
+      } else {
+        colorStyle = (ans === q.ans) ? 'color: var(--teal2); font-weight:bold;' : 'color: var(--gold);';
+      }
     }
     d.innerHTML = `<strong>فريق ${tn}:</strong> <span style="${colorStyle}">${ans}</span>`;
     jAnsList.appendChild(d);
   });
-  
+
   const jScoreList = $('jury-scores-list'); jScoreList.innerHTML = '';
   const teamEntries = Object.entries(app.teams);
   if (teamEntries.length === 0) {
     jScoreList.innerHTML = '<p class="muted">لا توجد نقاط بعد</p>';
   } else {
-    teamEntries.sort((a,b)=>b[1].score-a[1].score).forEach(([tn, d]) => {
+    teamEntries.sort((a, b) => b[1].score - a[1].score).forEach(([tn, d]) => {
       const row = document.createElement('div'); row.className = 'score-row';
       row.innerHTML = `<span>${d.name}</span><span class="score-pts">${d.score}</span>`;
       jScoreList.appendChild(row);
@@ -697,7 +877,7 @@ function joinTeam() {
   localStorage.setItem('musabaka_team_num', tn);
   $('part-team-display').textContent = 'فريق ' + tn;
   goto('screen-participant');
-  forceSync(); 
+  forceSync();
 }
 
 function syncParticipantState() {
@@ -709,7 +889,7 @@ function syncParticipantState() {
       app.lastQKey = app.activeQuestion.qKey;
       playGong(); vibrateDevice();
       handleIncomingQuestion(app.activeQuestion);
-    } 
+    }
   } else if (app.currentCat) {
     app.lastQKey = null; app.isTimerRunning = false;
     qViewDiv.classList.add('hidden'); waitingDiv.classList.remove('hidden');
@@ -744,7 +924,7 @@ function handleIncomingQuestion(data) {
   $('part-waiting').classList.add('hidden'); $('part-q-view').classList.remove('hidden');
   $('part-cat-badge').textContent = data.cat; $('part-num-badge').textContent = 'سؤال ' + (data.qIdx + 1);
   $('part-q-text').textContent = data.qText;
-  
+
   if (data.qType === 'mimes') {
     $('part-send-btn').classList.add('hidden'); $('part-sent-msg').classList.add('hidden');
     $('part-opts-area').innerHTML = "<div class='card' style='background:rgba(255,255,255,0.05); color:var(--gold);'>المشرف سيقوم باختيار الكلمة وفريقكم سيعبر عنها...</div>";
@@ -760,7 +940,7 @@ function renderPartOpts(data) {
   if (data.qType === 'mcq') {
     data.opts.forEach(o => {
       const b = document.createElement('div'); b.className = 'opt-btn'; b.textContent = o;
-      b.onclick = () => { document.querySelectorAll('.opts-grid .opt-btn').forEach(x=>x.classList.remove('selected')); b.classList.add('selected'); app.selectedOpt = o; };
+      b.onclick = () => { document.querySelectorAll('.opts-grid .opt-btn').forEach(x => x.classList.remove('selected')); b.classList.add('selected'); app.selectedOpt = o; };
       area.appendChild(b);
     });
   } else {
@@ -769,38 +949,38 @@ function renderPartOpts(data) {
 }
 
 function runPartTimer(startMs, dur) {
-  const circle = document.getElementById('part-circle'); 
+  const circle = document.getElementById('part-circle');
   const num = document.getElementById('part-timer-num');
-  
+
   app.isTimerRunning = true;
-  
+
   function updateTimer() {
-    if (!app.isTimerRunning) return; 
+    if (!app.isTimerRunning) return;
 
     const rem = Math.max(0, dur - (Date.now() - startMs) / 1000);
     if (circle) circle.style.strokeDashoffset = 326.7 * (1 - rem / dur);
     if (num) num.textContent = Math.ceil(rem);
-    
+
     if (rem > 0) {
       requestAnimationFrame(updateTimer);
     } else {
-      if (!$('part-send-btn').classList.contains('hidden')) sendAnswer("(انتهى الوقت)"); 
+      if (!$('part-send-btn').classList.contains('hidden')) sendAnswer("(انتهى الوقت)");
     }
   }
-  
+
   requestAnimationFrame(updateTimer);
 }
 
 async function sendAnswer(ansParam) {
   const qRealKey = app.activeQuestion.qKey;
   let ans = ansParam || (app.selectedOpt || ($('part-open-inp') ? $('part-open-inp').value.trim() : null) || "(بدون إجابة)");
-  
+
   if (!app.answeredQs.includes(qRealKey)) {
     app.answeredQs.push(qRealKey); localStorage.setItem('answered_qs', JSON.stringify(app.answeredQs));
   }
-  
+
   $('part-send-btn').classList.add('hidden'); $('part-sent-msg').classList.remove('hidden');
-  app.isTimerRunning = false; 
+  app.isTimerRunning = false;
 
   const ansData = { teamNum: app.teamNum, ans: ans, qKey: app.activeQuestion.qKey };
   try {
@@ -862,10 +1042,10 @@ function renderEvalQuestions() {
     card.className = 'eval-q-card';
     card.innerHTML = `<div class="eval-q-title">${i + 1}. ${q}</div><div class="eval-options" id="eval-opts-${i}"></div>`;
     container.appendChild(card);
-    
+
     const optsContainer = $(`eval-opts-${i}`);
     const options = q === "تقييم المؤطرين" ? EVAL_NUMBERS : EVAL_OPTIONS;
-    
+
     options.forEach(opt => {
       const btn = document.createElement('div');
       btn.className = 'eval-opt';
@@ -886,7 +1066,7 @@ async function submitEvaluation() {
   const team = $('eval-team').value;
   const rank = $('eval-rank').value;
   if (!team || !rank) { showToast("الرجاء إدخال رقم الفريق والرتبة", true); return; }
-  
+
   let answers = {};
   let allAnswered = true;
   EVAL_QUESTIONS.forEach((q, i) => {
@@ -894,15 +1074,15 @@ async function submitEvaluation() {
     if (!selected) allAnswered = false;
     else answers[q] = selected.dataset.val;
   });
-  
+
   if (!allAnswered) { showToast("الرجاء الإجابة على جميع التقييمات", true); return; }
-  
+
   const notes = $('eval-notes').value.trim();
   const evalData = { team, rank, answers, notes, room: evalRoomCode, ts: new Date().toISOString() };
-  
+
   $('eval-submit-btn').textContent = "جاري الإرسال...";
   $('eval-submit-btn').disabled = true;
-  
+
   try {
     const payload = b64Encode(evalData);
     await fetch(TOPIC_EVALS + evalRoomCode, { method: 'POST', body: payload });
@@ -944,7 +1124,7 @@ async function forceSyncEvals() {
             newCount++;
           }
         }
-      } catch(e) {}
+      } catch (e) { }
     });
     if (newCount > 0) {
       localStorage.setItem('musabaka_evals', JSON.stringify(existing));
@@ -952,7 +1132,7 @@ async function forceSyncEvals() {
     } else {
       showToast("لا تقييمات جديدة للاسترجاع");
     }
-  } catch(e) { showToast("خطأ في استرجاع التقييمات", true); }
+  } catch (e) { showToast("خطأ في استرجاع التقييمات", true); }
 }
 
 function exportEvalsToSheets() {
@@ -964,7 +1144,7 @@ function exportEvalsToSheets() {
   let csv = "Time;Team;Rank;Notes";
   EVAL_QUESTIONS.forEach(q => csv += `;"${q}"`);
   csv += "\n";
-  
+
   evals.forEach(ev => {
     let row = `"${ev.ts}";"${ev.team}";"${ev.rank}";"${(ev.notes || '').replace(/"/g, '""')}"`;
     EVAL_QUESTIONS.forEach(q => {
@@ -972,7 +1152,7 @@ function exportEvalsToSheets() {
     });
     csv += row + "\n";
   });
-  
+
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
